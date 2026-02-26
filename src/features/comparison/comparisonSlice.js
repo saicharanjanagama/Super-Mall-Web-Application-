@@ -1,13 +1,28 @@
 // src/features/comparison/comparisonSlice.js
+
 import { createSlice } from "@reduxjs/toolkit";
 
 const MAX_COMPARE_ITEMS = 4;
+
+/* =====================================================
+   Helper → Normalize Product (Prevent Large State)
+===================================================== */
+
+function normalizeProduct(product) {
+  return {
+    id: product.id,
+    name: product.name,
+    price: product.price,
+    imageUrl: product.imageUrl,
+    category: product.category,
+  };
+}
 
 const comparisonSlice = createSlice({
   name: "comparison",
 
   initialState: {
-    items: [], // [{ id, name, price, imageUrl, ... }]
+    items: [],
     max: MAX_COMPARE_ITEMS,
   },
 
@@ -17,37 +32,37 @@ const comparisonSlice = createSlice({
     ============================== */
     addToCompare(state, action) {
       const product = action.payload;
-
       if (!product?.id) return;
 
       const exists = state.items.some((p) => p.id === product.id);
       if (exists) return;
 
       if (state.items.length >= state.max) {
-        state.items.shift(); // remove oldest
+        state.items.shift();
       }
 
-      state.items.push(product);
+      state.items.push(normalizeProduct(product));
     },
 
     /* =============================
        TOGGLE COMPARE
-       (Better UX)
     ============================== */
     toggleCompare(state, action) {
       const product = action.payload;
-
       if (!product?.id) return;
 
-      const exists = state.items.find((p) => p.id === product.id);
+      const index = state.items.findIndex(
+        (p) => p.id === product.id
+      );
 
-      if (exists) {
-        state.items = state.items.filter((p) => p.id !== product.id);
+      if (index !== -1) {
+        state.items.splice(index, 1);
       } else {
         if (state.items.length >= state.max) {
           state.items.shift();
         }
-        state.items.push(product);
+
+        state.items.push(normalizeProduct(product));
       }
     },
 
@@ -55,7 +70,8 @@ const comparisonSlice = createSlice({
        REMOVE
     ============================== */
     removeFromCompare(state, action) {
-      state.items = state.items.filter((p) => p.id !== action.payload);
+      const id = action.payload;
+      state.items = state.items.filter((p) => p.id !== id);
     },
 
     /* =============================
@@ -66,10 +82,11 @@ const comparisonSlice = createSlice({
     },
 
     /* =============================
-       SET MAX LIMIT (future use)
+       SET MAX LIMIT
     ============================== */
     setCompareLimit(state, action) {
       const newLimit = action.payload;
+
       if (typeof newLimit === "number" && newLimit > 1) {
         state.max = newLimit;
 
@@ -81,9 +98,9 @@ const comparisonSlice = createSlice({
   },
 });
 
-/* =============================
+/* =====================================================
    EXPORT ACTIONS
-============================= */
+===================================================== */
 
 export const {
   addToCompare,
@@ -93,16 +110,22 @@ export const {
   setCompareLimit,
 } = comparisonSlice.actions;
 
-/* =============================
-   SELECTORS (Professional way)
-============================= */
+/* =====================================================
+   SELECTORS
+===================================================== */
 
-export const selectCompareItems = (state) => state.comparison.items;
+export const selectCompareItems = (state) =>
+  state.comparison.items;
 
 export const selectCompareCount = (state) =>
   state.comparison.items.length;
 
-export const isInCompare = (id) => (state) =>
-  state.comparison.items.some((p) => p.id === id);
+export const selectCompareLimit = (state) =>
+  state.comparison.max;
+
+export const isInCompare =
+  (id) =>
+  (state) =>
+    state.comparison.items.some((p) => p.id === id);
 
 export default comparisonSlice.reducer;

@@ -1,5 +1,5 @@
 // src/components/Home/Hero.jsx
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
 
@@ -23,6 +23,7 @@ const SlideArea = styled.div`
   height: 100%;
   transition: transform 600ms cubic-bezier(.22,.61,.36,1);
   transform: translateX(${(p) => p.offset}%);
+  will-change: transform;
 `;
 
 /* ===============================
@@ -164,21 +165,21 @@ const Dot = styled.button`
 const slides = [
   {
     id: 1,
-    bg: "/images/fruit1.jpg",
+    bg: "/images/electronics.jpg",
     title: "Big Deals. Big Savings.",
     text: "Explore top deals across electronics, fashion & more.",
     link: "/search?q=deals",
   },
   {
     id: 2,
-    bg: "/images/fruit2.jpg",
+    bg: "/images/shop-clothing.avif",
     title: "Shop the Latest Trends",
     text: "Fresh arrivals from top brands every week.",
     link: "/search?q=latest",
   },
   {
     id: 3,
-    bg: "/images/fruit3.jpg",
+    bg: "/images/jewellery.jpg",
     title: "Exclusive Mall Offers",
     text: "Special discounts available only at SuperMall.",
     link: "/search?q=offers",
@@ -190,22 +191,30 @@ const slides = [
 ================================ */
 export default function Hero({ interval = 5000 }) {
   const navigate = useNavigate();
-
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
 
   const touchStartX = useRef(0);
   const touchDelta = useRef(0);
+  const intervalRef = useRef(null);
+
+  const prev = useCallback(() => {
+    setIndex((i) => (i - 1 + slides.length) % slides.length);
+  }, []);
+
+  const next = useCallback(() => {
+    setIndex((i) => (i + 1) % slides.length);
+  }, []);
 
   /* AUTOPLAY */
   useEffect(() => {
     if (paused) return;
 
-    const id = setInterval(() => {
+    intervalRef.current = setInterval(() => {
       setIndex((i) => (i + 1) % slides.length);
     }, interval);
 
-    return () => clearInterval(id);
+    return () => clearInterval(intervalRef.current);
   }, [paused, interval]);
 
   /* KEYBOARD SUPPORT */
@@ -214,15 +223,10 @@ export default function Hero({ interval = 5000 }) {
       if (e.key === "ArrowLeft") prev();
       if (e.key === "ArrowRight") next();
     };
+
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  const prev = () =>
-    setIndex((i) => (i - 1 + slides.length) % slides.length);
-
-  const next = () =>
-    setIndex((i) => (i + 1) % slides.length);
+  }, [prev, next]);
 
   /* TOUCH SUPPORT */
   const onTouchStart = (e) => {
@@ -250,10 +254,11 @@ export default function Hero({ interval = 5000 }) {
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
-      aria-roledescription="carousel"
+      role="region"
+      aria-label="Promotional Carousel"
     >
       <SlideArea offset={-index * 100}>
-        {slides.map((s) => (
+        {slides.map((s, i) => (
           <Slide key={s.id} bg={s.bg}>
             <Content>
               <Title>{s.title}</Title>
@@ -266,11 +271,11 @@ export default function Hero({ interval = 5000 }) {
         ))}
       </SlideArea>
 
-      <ArrowLeft onClick={prev} aria-label="Previous">
+      <ArrowLeft onClick={prev} aria-label="Previous Slide">
         ◀
       </ArrowLeft>
 
-      <ArrowRight onClick={next} aria-label="Next">
+      <ArrowRight onClick={next} aria-label="Next Slide">
         ▶
       </ArrowRight>
 
@@ -279,6 +284,7 @@ export default function Hero({ interval = 5000 }) {
           <Dot
             key={i}
             active={i === index}
+            aria-label={`Go to slide ${i + 1}`}
             onClick={() => setIndex(i)}
           />
         ))}

@@ -26,7 +26,8 @@ const Input = styled.input`
   padding: 10px;
   margin-bottom: 14px;
   border-radius: ${({ theme }) => theme.radius};
-  border: 1px solid ${({ theme }) => theme.colors.border || "#ccc"};
+  border: 1px solid ${({ theme }) =>
+    theme.colors.border || "#ccc"};
 `;
 
 const Select = styled.select`
@@ -34,7 +35,8 @@ const Select = styled.select`
   padding: 10px;
   margin-bottom: 14px;
   border-radius: ${({ theme }) => theme.radius};
-  border: 1px solid ${({ theme }) => theme.colors.border || "#ccc"};
+  border: 1px solid ${({ theme }) =>
+    theme.colors.border || "#ccc"};
 `;
 
 const TextArea = styled.textarea`
@@ -42,7 +44,8 @@ const TextArea = styled.textarea`
   padding: 10px;
   height: 90px;
   border-radius: ${({ theme }) => theme.radius};
-  border: 1px solid ${({ theme }) => theme.colors.border || "#ccc"};
+  border: 1px solid ${({ theme }) =>
+    theme.colors.border || "#ccc"};
   margin-bottom: 14px;
 `;
 
@@ -78,9 +81,17 @@ const ErrorText = styled.p`
 export default function ShopForm() {
   const dispatch = useDispatch();
   const user = useSelector((s) => s.auth.user);
-  const { editingShop, status, error } = useSelector(
-    (s) => s.shops
-  );
+
+  const {
+    editingShop,
+    createStatus,
+    updateStatus,
+    error,
+  } = useSelector((s) => s.shops);
+
+  const isCreating = createStatus === "loading";
+  const isUpdating = updateStatus === "loading";
+  const isLoading = isCreating || isUpdating;
 
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
@@ -94,7 +105,9 @@ export default function ShopForm() {
       setName(editingShop.name || "");
       setCategory(editingShop.category || "");
       setFloor(editingShop.floor || "");
-      setDescription(editingShop.description || "");
+      setDescription(
+        editingShop.description || ""
+      );
     }
   }, [editingShop]);
 
@@ -135,7 +148,7 @@ export default function ShopForm() {
         addShop({
           ...data,
           owner: user?.uid,
-          status: "pending", // ready for admin approval
+          status: "pending",
           createdAt: Date.now(),
         })
       );
@@ -145,14 +158,20 @@ export default function ShopForm() {
   };
 
   /* ================= ACCESS CONTROL ================= */
-  if (!user || (user.role !== "merchant" && user.role !== "admin")) {
+  if (
+    !user ||
+    (user.role !== "merchant" &&
+      user.role !== "admin")
+  ) {
     return null;
   }
 
   return (
     <FormCard>
       <Title>
-        {editingShop ? "Edit Shop" : "Add New Shop"}
+        {editingShop
+          ? "Edit Shop"
+          : "Add New Shop"}
       </Title>
 
       {error && <ErrorText>{error}</ErrorText>}
@@ -226,16 +245,11 @@ export default function ShopForm() {
         <ButtonRow>
           <Button
             type="submit"
-            disabled={
-              status === "creating" ||
-              status === "updating"
-            }
+            disabled={isLoading}
           >
-            {status === "creating" &&
-              "Creating..."}
-            {status === "updating" &&
-              "Updating..."}
-            {status === "idle" &&
+            {isCreating && "Creating..."}
+            {isUpdating && "Updating..."}
+            {!isLoading &&
               (editingShop
                 ? "Update Shop"
                 : "Add Shop")}

@@ -8,12 +8,12 @@ import { createSlice, createSelector } from "@reduxjs/toolkit";
 
 const initialState = {
   search: "",
-  categories: [],        // multiple category support
+  categories: [],
   minPrice: 0,
   maxPrice: Infinity,
   minRating: 0,
   inStockOnly: false,
-  sort: "newest",        // newest | price-asc | price-desc | name | rating
+  sort: "newest", // newest | price-asc | price-desc | name | rating
 };
 
 /* =====================================================
@@ -28,24 +28,26 @@ const productFilterSlice = createSlice({
     /* ================= SEARCH ================= */
 
     setSearch(state, action) {
-      state.search = action.payload;
+      state.search = action.payload ?? "";
     },
 
     /* ================= CATEGORY ================= */
 
-    // NEW: single category setter (for backward compatibility)
     setCategory(state, action) {
       const category = action.payload;
       state.categories = category ? [category] : [];
     },
 
-    // multiple categories setter
     setCategories(state, action) {
-      state.categories = action.payload || [];
+      state.categories = Array.isArray(action.payload)
+        ? action.payload
+        : [];
     },
 
     toggleCategory(state, action) {
       const category = action.payload;
+      if (!category) return;
+
       const exists = state.categories.includes(category);
 
       if (exists) {
@@ -60,32 +62,46 @@ const productFilterSlice = createSlice({
     /* ================= PRICE ================= */
 
     setMinPrice(state, action) {
-      state.minPrice = Number(action.payload) || 0;
+      state.minPrice = Math.max(
+        0,
+        Number(action.payload) || 0
+      );
     },
 
     setMaxPrice(state, action) {
-      state.maxPrice =
-        action.payload === "" || action.payload === null
-          ? Infinity
-          : Number(action.payload);
+      if (
+        action.payload === "" ||
+        action.payload === null
+      ) {
+        state.maxPrice = Infinity;
+      } else {
+        const value = Number(action.payload);
+        state.maxPrice =
+          Number.isFinite(value) && value > 0
+            ? value
+            : Infinity;
+      }
     },
 
     /* ================= RATING ================= */
 
     setMinRating(state, action) {
-      state.minRating = Number(action.payload) || 0;
+      state.minRating = Math.max(
+        0,
+        Number(action.payload) || 0
+      );
     },
 
     /* ================= STOCK ================= */
 
     setInStockOnly(state, action) {
-      state.inStockOnly = action.payload;
+      state.inStockOnly = Boolean(action.payload);
     },
 
     /* ================= SORT ================= */
 
     setSort(state, action) {
-      state.sort = action.payload;
+      state.sort = action.payload || "newest";
     },
 
     /* ================= RESET ================= */
@@ -103,16 +119,23 @@ const productFilterSlice = createSlice({
 export const selectFilters = (state) =>
   state.productFilters;
 
+/* =====================================================
+   FILTERED PRODUCTS SELECTOR
+===================================================== */
+
 export const selectFilteredProducts = createSelector(
   [(state) => state.products.products, selectFilters],
   (products, filters) => {
-    if (!products) return [];
+    if (!Array.isArray(products)) return [];
 
     let filtered = [...products];
 
     /* ========== SEARCH ========== */
     if (filters.search) {
-      const term = filters.search.toLowerCase();
+      const term = filters.search
+        .toLowerCase()
+        .trim();
+
       filtered = filtered.filter((p) =>
         p.name?.toLowerCase().includes(term)
       );
@@ -126,34 +149,65 @@ export const selectFilteredProducts = createSelector(
     }
 
     /* ========== PRICE ========== */
-    filtered = filtered.filter(
-      (p) =>
-        p.price >= filters.minPrice &&
-        p.price <= filters.maxPrice
-    );
+    filtered = filtered.filter((p) => {
+      const price = Number(p.price) || 0;
+      return (
+        price >= filters.minPrice &&
+        price <= filters.maxPrice
+      );
+    });
 
     /* ========== RATING ========== */
     if (filters.minRating > 0) {
       filtered = filtered.filter(
-        (p) => (p.avgRating || 0) >= filters.minRating
+        (p) =>
+          (Number(p.avgRating) || 0) >=
+          filters.minRating
       );
     }
 
     /* ========== STOCK ========== */
     if (filters.inStockOnly) {
       filtered = filtered.filter(
-        (p) => (p.stock || 0) > 0
+        (p) => (Number(p.stock) || 0) > 0
       );
     }
 
     /* ========== SORTING ========== */
+
+    const getCreatedAtValue = (product) => {
+      const value = product.createdAt;
+
+      if (!value) return 0;
+
+      // If ISO string
+      if (typeof value === "string") {
+        return new Date(value).getTime() || 0;
+      }
+
+      // If numeric timestamp
+      if (typeof value === "number") {
+        return value;
+      }
+
+      return 0;
+    };
+
     switch (filters.sort) {
       case "price-asc":
-        filtered.sort((a, b) => a.price - b.price);
+        filtered.sort(
+          (a, b) =>
+            (Number(a.price) || 0) -
+            (Number(b.price) || 0)
+        );
         break;
 
       case "price-desc":
-        filtered.sort((a, b) => b.price - a.price);
+        filtered.sort(
+          (a, b) =>
+            (Number(b.price) || 0) -
+            (Number(a.price) || 0)
+        );
         break;
 
       case "name":
@@ -164,7 +218,9 @@ export const selectFilteredProducts = createSelector(
 
       case "rating":
         filtered.sort(
-          (a, b) => (b.avgRating || 0) - (a.avgRating || 0)
+          (a, b) =>
+            (Number(b.avgRating) || 0) -
+            (Number(a.avgRating) || 0)
         );
         break;
 
@@ -172,8 +228,8 @@ export const selectFilteredProducts = createSelector(
       default:
         filtered.sort(
           (a, b) =>
-            (b.createdAt?.seconds || 0) -
-            (a.createdAt?.seconds || 0)
+            getCreatedAtValue(b) -
+            getCreatedAtValue(a)
         );
         break;
     }
@@ -188,7 +244,7 @@ export const selectFilteredProducts = createSelector(
 
 export const {
   setSearch,
-  setCategory,      // ✅ now exists
+  setCategory,
   setCategories,
   toggleCategory,
   setMinPrice,

@@ -1,5 +1,5 @@
 // src/components/UI/AdvancedGallery.jsx
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import styled from "styled-components";
 
 /* ===============================
@@ -42,10 +42,13 @@ const Arrow = styled.button`
   font-size: 20px;
   cursor: pointer;
   z-index: 10;
-  transition: 0.2s ease;
 
   &:hover {
     background: rgba(0,0,0,0.8);
+  }
+
+  &:focus-visible {
+    outline: 3px solid white;
   }
 `;
 
@@ -75,19 +78,20 @@ const ThumbsRow = styled.div`
   overflow-x: auto;
 `;
 
-const Thumb = styled.div`
+const Thumb = styled.button`
   width: 78px;
   height: 78px;
   border-radius: 10px;
   overflow: hidden;
   flex-shrink: 0;
   cursor: pointer;
-  border: 2px solid ${({ selected, theme }) =>
-    selected ? theme.colors.primary : "transparent"};
-  transition: 0.2s ease;
+  border: 2px solid ${({ $selected, theme }) =>
+    $selected ? theme.colors.primary : "transparent"};
+  padding: 0;
+  background: transparent;
 
-  &:hover {
-    transform: scale(1.05);
+  &:focus-visible {
+    outline: 3px solid ${({ theme }) => theme.colors.primary};
   }
 
   img {
@@ -123,52 +127,56 @@ const CloseBtn = styled.button`
   border: none;
   color: white;
   cursor: pointer;
+
+  &:focus-visible {
+    outline: 3px solid white;
+  }
 `;
 
 /* ===============================
    COMPONENT
 ================================ */
 
-export default function AdvancedGallery({ images = [] }) {
+export default function AdvancedGallery({ images = [], alt = "Product image" }) {
   const imgs = images.length ? images : ["/placeholder.png"];
 
   const [index, setIndex] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
   const [zoom, setZoom] = useState(1);
 
-  const next = () => setIndex((i) => (i + 1) % imgs.length);
-  const prev = () => setIndex((i) => (i - 1 + imgs.length) % imgs.length);
+  const next = useCallback(
+    () => setIndex((i) => (i + 1) % imgs.length),
+    [imgs.length]
+  );
+
+  const prev = useCallback(
+    () => setIndex((i) => (i - 1 + imgs.length) % imgs.length),
+    [imgs.length]
+  );
 
   /* Keyboard navigation */
   useEffect(() => {
     const handleKey = (e) => {
-      if (!fullscreen) return;
-
-      if (e.key === "Escape") setFullscreen(false);
       if (e.key === "ArrowRight") next();
       if (e.key === "ArrowLeft") prev();
+      if (e.key === "Escape") setFullscreen(false);
     };
 
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [fullscreen]);
+  }, [next, prev]);
 
   /* Swipe support */
   const startX = useRef(0);
-  const distX = useRef(0);
 
   const onTouchStart = (e) => {
     startX.current = e.touches[0].clientX;
   };
 
-  const onTouchMove = (e) => {
-    distX.current = e.touches[0].clientX - startX.current;
-  };
-
-  const onTouchEnd = () => {
-    if (distX.current > 60) prev();
-    else if (distX.current < -60) next();
-    distX.current = 0;
+  const onTouchEnd = (e) => {
+    const delta = e.changedTouches[0].clientX - startX.current;
+    if (delta > 60) prev();
+    else if (delta < -60) next();
   };
 
   const toggleZoom = () => {
@@ -176,16 +184,15 @@ export default function AdvancedGallery({ images = [] }) {
   };
 
   return (
-    <Wrapper>
-      {/* MAIN IMAGE */}
+    <Wrapper aria-label="Product Image Gallery">
       <MainImageBox
         onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
       >
         <MainImg
           src={imgs[index]}
-          alt=""
+          alt={`${alt} ${index + 1}`}
+          loading="lazy"
           style={{ transform: `scale(${zoom})` }}
           onClick={() => setFullscreen(true)}
           onDoubleClick={toggleZoom}
@@ -193,8 +200,8 @@ export default function AdvancedGallery({ images = [] }) {
 
         {imgs.length > 1 && (
           <>
-            <LeftArrow onClick={prev}>‹</LeftArrow>
-            <RightArrow onClick={next}>›</RightArrow>
+            <LeftArrow onClick={prev} aria-label="Previous image">‹</LeftArrow>
+            <RightArrow onClick={next} aria-label="Next image">›</RightArrow>
           </>
         )}
 
@@ -203,27 +210,34 @@ export default function AdvancedGallery({ images = [] }) {
         </Counter>
       </MainImageBox>
 
-      {/* THUMBNAILS */}
       <ThumbsRow>
         {imgs.map((src, i) => (
           <Thumb
             key={i}
-            selected={i === index}
+            $selected={i === index}
             onClick={() => setIndex(i)}
+            aria-label={`View image ${i + 1}`}
           >
-            <img src={src} alt="" />
+            <img src={src} alt="" loading="lazy" />
           </Thumb>
         ))}
       </ThumbsRow>
 
-      {/* FULLSCREEN VIEW */}
       {fullscreen && (
-        <FullscreenOverlay onClick={() => setFullscreen(false)}>
-          <CloseBtn onClick={() => setFullscreen(false)}>×</CloseBtn>
+        <FullscreenOverlay
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setFullscreen(false)}
+        >
+          <CloseBtn onClick={() => setFullscreen(false)} aria-label="Close">
+            ×
+          </CloseBtn>
 
           <FullscreenImg
             src={imgs[index]}
+            alt={`${alt} fullscreen`}
             style={{ transform: `scale(${zoom})` }}
+            onClick={(e) => e.stopPropagation()}
             onDoubleClick={toggleZoom}
           />
         </FullscreenOverlay>

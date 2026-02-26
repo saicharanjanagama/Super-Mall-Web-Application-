@@ -12,7 +12,6 @@ import {
    THUNKS
 ===================================================== */
 
-/* ---------------- FETCH ALL OFFERS ---------------- */
 export const fetchAllOffers = createAsyncThunk(
   "offers/fetchAllOffers",
   async (_, { rejectWithValue }) => {
@@ -24,7 +23,6 @@ export const fetchAllOffers = createAsyncThunk(
   }
 );
 
-/* ---------------- FETCH BY SHOP ---------------- */
 export const fetchOffers = createAsyncThunk(
   "offers/fetchOffers",
   async (shopId, { rejectWithValue }) => {
@@ -36,7 +34,6 @@ export const fetchOffers = createAsyncThunk(
   }
 );
 
-/* ---------------- CREATE OFFER ---------------- */
 export const createOffer = createAsyncThunk(
   "offers/createOffer",
   async (data, { rejectWithValue }) => {
@@ -48,7 +45,6 @@ export const createOffer = createAsyncThunk(
   }
 );
 
-/* ---------------- DELETE OFFER ---------------- */
 export const removeOffer = createAsyncThunk(
   "offers/removeOffer",
   async (id, { rejectWithValue }) => {
@@ -61,7 +57,6 @@ export const removeOffer = createAsyncThunk(
   }
 );
 
-/* ---------------- UPDATE OFFER ---------------- */
 export const editOffer = createAsyncThunk(
   "offers/editOffer",
   async ({ id, updates }, { rejectWithValue }) => {
@@ -83,7 +78,12 @@ const slice = createSlice({
   initialState: {
     list: [],
     offersByShop: {},
-    status: "idle", // idle | loading | creating | updating | deleting | failed
+
+    fetchStatus: "idle",
+    createStatus: "idle",
+    updateStatus: "idle",
+    deleteStatus: "idle",
+
     error: null,
     editingOffer: null,
   },
@@ -92,62 +92,67 @@ const slice = createSlice({
     setEditingOffer(state, action) {
       state.editingOffer = action.payload;
     },
-
     clearOfferError(state) {
       state.error = null;
     },
   },
 
   extraReducers: (builder) => {
-    /* ================= FETCH ALL ================= */
     builder
+
+      /* ================= FETCH ALL ================= */
       .addCase(fetchAllOffers.pending, (state) => {
-        state.status = "loading";
+        state.fetchStatus = "loading";
+        state.error = null;
       })
       .addCase(fetchAllOffers.fulfilled, (state, action) => {
-        state.status = "idle";
-        const offers = action.payload || [];
+        state.fetchStatus = "idle";
 
+        const offers = action.payload ?? [];
         state.list = offers;
 
-        // Rebuild grouped offers
+        // rebuild grouping
         state.offersByShop = offers.reduce((acc, offer) => {
           if (!offer.shopId) return acc;
-          if (!acc[offer.shopId]) acc[offer.shopId] = [];
+
+          if (!acc[offer.shopId]) {
+            acc[offer.shopId] = [];
+          }
+
           acc[offer.shopId].push(offer);
           return acc;
         }, {});
       })
       .addCase(fetchAllOffers.rejected, (state, action) => {
-        state.status = "failed";
+        state.fetchStatus = "failed";
         state.error = action.payload;
-      });
+      })
 
-    /* ================= FETCH BY SHOP ================= */
-    builder
+      /* ================= FETCH BY SHOP ================= */
       .addCase(fetchOffers.pending, (state) => {
-        state.status = "loading";
+        state.fetchStatus = "loading";
+        state.error = null;
       })
       .addCase(fetchOffers.fulfilled, (state, action) => {
-        state.status = "idle";
-        state.list = action.payload || [];
+        state.fetchStatus = "idle";
+        state.list = action.payload ?? [];
       })
       .addCase(fetchOffers.rejected, (state, action) => {
-        state.status = "failed";
+        state.fetchStatus = "failed";
         state.error = action.payload;
-      });
+      })
 
-    /* ================= CREATE ================= */
-    builder
+      /* ================= CREATE ================= */
       .addCase(createOffer.pending, (state) => {
-        state.status = "creating";
+        state.createStatus = "loading";
+        state.error = null;
       })
       .addCase(createOffer.fulfilled, (state, action) => {
-        state.status = "idle";
+        state.createStatus = "idle";
+
         const offer = action.payload;
 
-        // Prevent duplicates
-        if (!state.list.find((o) => o.id === offer.id)) {
+        if (!state.list.some((o) => o.id === offer.id)) {
           state.list.unshift(offer);
         }
 
@@ -156,87 +161,96 @@ const slice = createSlice({
             state.offersByShop[offer.shopId] = [];
           }
 
-          const exists = state.offersByShop[offer.shopId].find(
-            (o) => o.id === offer.id
-          );
-
-          if (!exists) {
-            state.offersByShop[offer.shopId].push(offer);
-          }
+          state.offersByShop[offer.shopId].unshift(offer);
         }
       })
       .addCase(createOffer.rejected, (state, action) => {
-        state.status = "failed";
+        state.createStatus = "failed";
         state.error = action.payload;
-      });
+      })
 
-    /* ================= DELETE ================= */
-    builder
+      /* ================= DELETE ================= */
       .addCase(removeOffer.pending, (state) => {
-        state.status = "deleting";
+        state.deleteStatus = "loading";
+        state.error = null;
       })
       .addCase(removeOffer.fulfilled, (state, action) => {
-        state.status = "idle";
+        state.deleteStatus = "idle";
         const id = action.payload;
 
         state.list = state.list.filter((o) => o.id !== id);
 
         Object.keys(state.offersByShop).forEach((shopId) => {
-          state.offersByShop[shopId] = state.offersByShop[shopId].filter(
-            (o) => o.id !== id
-          );
+          state.offersByShop[shopId] =
+            state.offersByShop[shopId].filter(
+              (o) => o.id !== id
+            );
         });
       })
       .addCase(removeOffer.rejected, (state, action) => {
-        state.status = "failed";
+        state.deleteStatus = "failed";
         state.error = action.payload;
-      });
+      })
 
-    /* ================= UPDATE ================= */
-    builder
+      /* ================= UPDATE ================= */
       .addCase(editOffer.pending, (state) => {
-        state.status = "updating";
+        state.updateStatus = "loading";
+        state.error = null;
       })
       .addCase(editOffer.fulfilled, (state, action) => {
-        state.status = "idle";
+        state.updateStatus = "idle";
         const updated = action.payload;
 
         state.list = state.list.map((o) =>
           o.id === updated.id ? { ...o, ...updated } : o
         );
 
-        if (updated.shopId && state.offersByShop[updated.shopId]) {
-          state.offersByShop[updated.shopId] =
-            state.offersByShop[updated.shopId].map((o) =>
+        Object.keys(state.offersByShop).forEach((shopId) => {
+          state.offersByShop[shopId] =
+            state.offersByShop[shopId].map((o) =>
               o.id === updated.id ? { ...o, ...updated } : o
             );
-        }
+        });
 
         state.editingOffer = null;
       })
       .addCase(editOffer.rejected, (state, action) => {
-        state.status = "failed";
+        state.updateStatus = "failed";
         state.error = action.payload;
       });
   },
 });
 
 /* =====================================================
-   SELECTORS (PRODUCTION READY)
+   SELECTORS
 ===================================================== */
 
 export const selectAllOffers = (state) => state.offers.list;
 
-export const selectOffersByShop = (shopId) => (state) =>
-  state.offers.offersByShop[shopId] || [];
+export const selectOffersByShop =
+  (shopId) => (state) =>
+    state.offers.offersByShop[shopId] ?? [];
 
-export const selectOfferStatus = (state) => state.offers.status;
+export const selectOfferFetchStatus = (state) =>
+  state.offers.fetchStatus;
 
-export const selectOfferError = (state) => state.offers.error;
+export const selectOfferCreateStatus = (state) =>
+  state.offers.createStatus;
+
+export const selectOfferUpdateStatus = (state) =>
+  state.offers.updateStatus;
+
+export const selectOfferDeleteStatus = (state) =>
+  state.offers.deleteStatus;
+
+export const selectOfferError = (state) =>
+  state.offers.error;
 
 /* =====================================================
    EXPORT
 ===================================================== */
 
-export const { setEditingOffer, clearOfferError } = slice.actions;
+export const { setEditingOffer, clearOfferError } =
+  slice.actions;
+
 export default slice.reducer;

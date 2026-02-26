@@ -1,6 +1,6 @@
 // src/views/Home.jsx
 
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import styled from "styled-components";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -69,24 +69,38 @@ export default function Home() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const { products = [], loading } = useSelector(
-    (s) => s.products || {}
-  );
-  const { shops = [] } = useSelector(
-    (s) => s.shops || {}
-  );
+  const productsState = useSelector((s) => s.products || {});
+  const shopsState = useSelector((s) => s.shops || {});
 
+  const products = productsState.products || [];
+  const productsStatus = productsState.status || "idle";
+
+  const shops = shopsState.shops || [];
+  const shopsStatus = shopsState.status || "idle";
+
+  /* ===== FETCH DATA ONLY IF NEEDED ===== */
   useEffect(() => {
-    dispatch(fetchProducts());
-    dispatch(fetchShops());
-    dispatch(fetchAllOffers());
-  }, [dispatch]);
+    if (productsStatus === "idle") {
+      dispatch(fetchProducts());
+    }
 
-  // 👉 Add-to-cart handler
+    if (shopsStatus === "idle") {
+      dispatch(fetchShops());
+    }
+
+    dispatch(fetchAllOffers());
+  }, [dispatch, productsStatus, shopsStatus]);
+
+  /* ===== ADD TO CART ===== */
   const addItemToCart = (product, e) => {
-    e.stopPropagation();
+    e?.stopPropagation?.();
     dispatch(addToCart(product));
   };
+
+  /* ===== MEMOIZED RECOMMENDED ===== */
+  const recommendedProducts = useMemo(() => {
+    return products.slice(0, 8);
+  }, [products]);
 
   return (
     <Page>
@@ -113,23 +127,36 @@ export default function Home() {
 
       {/* ===== RECOMMENDED ===== */}
       <Section>
-        <SectionTitle>Recommended For You</SectionTitle>
-        <Recommended
-          products={products}
-          addToCart={addItemToCart}
-        />
+        {productsStatus === "loading" ? (
+          <Grid>
+            {Array(8)
+              .fill(0)
+              .map((_, i) => (
+                <SkeletonCard key={i} />
+              ))}
+          </Grid>
+        ) : recommendedProducts.length === 0 ? (
+          <p style={{ opacity: 0.6 }}>
+            No products available right now.
+          </p>
+        ) : (
+          <Recommended
+            products={recommendedProducts}
+            addToCart={addItemToCart}
+          />
+        )}
       </Section>
 
       {/* ===== FLOOR SECTION ===== */}
       <Section>
-        <FloorSection addToCart={addItemToCart} />
+        <FloorSection />
       </Section>
 
       {/* ===== POPULAR SHOPS ===== */}
       <Section>
         <SectionTitle>Popular Shops</SectionTitle>
 
-        {loading ? (
+        {shopsStatus === "loading" ? (
           <Grid>
             {Array(6)
               .fill(0)
@@ -137,6 +164,10 @@ export default function Home() {
                 <SkeletonCard key={i} />
               ))}
           </Grid>
+        ) : shops.length === 0 ? (
+          <p style={{ opacity: 0.6 }}>
+            No shops available yet.
+          </p>
         ) : (
           <Grid>
             {shops.slice(0, 6).map((shop) => (

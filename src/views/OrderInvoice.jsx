@@ -1,6 +1,6 @@
 // src/views/OrderInvoice.jsx
 
-import React from "react";
+import React, { useMemo } from "react";
 import { useLocation, Link } from "react-router-dom";
 import styled from "styled-components";
 
@@ -37,6 +37,7 @@ const Row = styled.div`
   display: flex;
   justify-content: space-between;
   margin-bottom: 8px;
+  flex-wrap: wrap;
 `;
 
 const StatusBadge = styled.span`
@@ -48,7 +49,7 @@ const StatusBadge = styled.span`
     status === "Delivered"
       ? "#16a34a"
       : status === "Cancelled"
-      ? theme.colors.danger
+      ? theme.colors.danger || "#dc2626"
       : status === "Shipped"
       ? "#0284c7"
       : "#f59e0b"};
@@ -59,7 +60,7 @@ const ItemRow = styled.div`
   display: flex;
   justify-content: space-between;
   padding: 8px 0;
-  border-bottom: 1px solid ${({ theme }) => theme.colors.muted};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.border || "#eee"};
 `;
 
 const TotalSection = styled.div`
@@ -102,6 +103,27 @@ export default function OrderInvoice() {
   const { state } = useLocation();
   const order = state?.order;
 
+  /* ===== SAFE DATA ===== */
+  const items = order?.items || [];
+
+  const subtotal = useMemo(() => {
+    return items.reduce((sum, it) => {
+      const price = Number(it?.price) || 0;
+      const qty = Number(it?.qty) || 1;
+      return sum + price * qty;
+    }, 0);
+  }, [items]);
+
+  const total = Number(order?.total) || subtotal;
+
+  const created =
+    order?.createdAt?.seconds
+      ? new Date(order.createdAt.seconds * 1000)
+      : order?.createdAt
+      ? new Date(order.createdAt)
+      : null;
+
+  /* ===== EARLY RETURN AFTER HOOKS ===== */
   if (!order) {
     return (
       <Page>
@@ -110,56 +132,56 @@ export default function OrderInvoice() {
     );
   }
 
-  const created =
-    order.createdAt?.seconds
-      ? new Date(order.createdAt.seconds * 1000)
-      : new Date(order.createdAt);
-
-  const subtotal = order.items.reduce(
-    (sum, it) => sum + it.price * (it.qty || 1),
-    0
-  );
-
   return (
     <Page>
       <Title>Invoice</Title>
 
-      {/* ===== ORDER INFO ===== */}
       <Box>
         <Row>
           <div>
             <strong>Order ID:</strong> {order.id}
           </div>
+
           <StatusBadge status={order.status}>
-            {order.status}
+            {order.status || "Pending"}
           </StatusBadge>
         </Row>
 
         <Row>
           <div>
             <strong>Date:</strong>{" "}
-            {created?.toLocaleString("en-IN")}
+            {created
+              ? created.toLocaleString("en-IN")
+              : "N/A"}
           </div>
         </Row>
       </Box>
 
-      {/* ===== ITEMS ===== */}
       <Box>
         <h3>Items</h3>
 
-        {order.items.map((it) => (
-          <ItemRow key={it.id}>
-            <span>
-              {it.name} × {it.qty || 1}
-            </span>
-            <span>
-              ₹
-              {(
-                it.price * (it.qty || 1)
-              ).toLocaleString("en-IN")}
-            </span>
-          </ItemRow>
-        ))}
+        {items.length === 0 ? (
+          <p style={{ opacity: 0.6 }}>
+            No items available.
+          </p>
+        ) : (
+          items.map((it) => {
+            const price = Number(it?.price) || 0;
+            const qty = Number(it?.qty) || 1;
+
+            return (
+              <ItemRow key={it.id}>
+                <span>
+                  {it.name} × {qty}
+                </span>
+                <span>
+                  ₹
+                  {(price * qty).toLocaleString("en-IN")}
+                </span>
+              </ItemRow>
+            );
+          })
+        )}
 
         <TotalSection>
           <p>
@@ -172,25 +194,16 @@ export default function OrderInvoice() {
           </p>
 
           <h3>
-            Total: ₹
-            {order.total?.toLocaleString("en-IN")}
+            Total: ₹{total.toLocaleString("en-IN")}
           </h3>
         </TotalSection>
       </Box>
 
-      {/* ===== DELIVERY INFO ===== */}
       <Box>
         <h3>Delivery Information</h3>
-        <p>
-          <strong>Name:</strong> {order.name || "N/A"}
-        </p>
-        <p>
-          <strong>Phone:</strong> {order.phone || "N/A"}
-        </p>
-        <p>
-          <strong>Address:</strong>{" "}
-          {order.address || "N/A"}
-        </p>
+        <p><strong>Name:</strong> {order.name || "N/A"}</p>
+        <p><strong>Phone:</strong> {order.phone || "N/A"}</p>
+        <p><strong>Address:</strong> {order.address || "N/A"}</p>
       </Box>
 
       <PrintButton onClick={() => window.print()}>

@@ -12,7 +12,21 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 
-import { firestore } from "./firebase";
+import { db } from "./firebase";
+
+/* =========================================================
+   HELPER → Convert Firestore Timestamp
+========================================================= */
+const formatDoc = (docItem) => {
+  const data = docItem.data();
+
+  return {
+    id: docItem.id,
+    ...data,
+    createdAt: data.createdAt?.toDate?.().toISOString?.() || null,
+    updatedAt: data.updatedAt?.toDate?.().toISOString?.() || null,
+  };
+};
 
 /* =========================================================
    CREATE ORDER
@@ -30,12 +44,14 @@ export async function createOrder(order) {
       updatedAt: serverTimestamp(),
     };
 
-    const ref = await addDoc(collection(firestore, "orders"), payload);
+    const ref = await addDoc(collection(db, "orders"), payload);
 
     return {
       id: ref.id,
-      ...payload,
-      createdAt: Date.now(), // immediate UI fallback
+      ...order,
+      status: payload.status,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
   } catch (error) {
     console.error("createOrder error:", error);
@@ -51,17 +67,14 @@ export async function getOrdersByUser(userId) {
     if (!userId) throw new Error("User ID required");
 
     const q = query(
-      collection(firestore, "orders"),
+      collection(db, "orders"),
       where("userId", "==", userId),
       orderBy("createdAt", "desc")
     );
 
     const snap = await getDocs(q);
 
-    return snap.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
-    }));
+    return snap.docs.map(formatDoc);
   } catch (error) {
     console.error("getOrdersByUser error:", error);
     throw new Error("Failed to fetch user orders");
@@ -74,16 +87,13 @@ export async function getOrdersByUser(userId) {
 export async function getAllOrders() {
   try {
     const q = query(
-      collection(firestore, "orders"),
+      collection(db, "orders"),
       orderBy("createdAt", "desc")
     );
 
     const snap = await getDocs(q);
 
-    return snap.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
-    }));
+    return snap.docs.map(formatDoc);
   } catch (error) {
     console.error("getAllOrders error:", error);
     throw new Error("Failed to fetch all orders");
@@ -98,17 +108,14 @@ export async function getOrdersByMerchant(merchantId) {
     if (!merchantId) throw new Error("Merchant ID required");
 
     const q = query(
-      collection(firestore, "orders"),
+      collection(db, "orders"),
       where("merchantId", "==", merchantId),
       orderBy("createdAt", "desc")
     );
 
     const snap = await getDocs(q);
 
-    return snap.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
-    }));
+    return snap.docs.map(formatDoc);
   } catch (error) {
     console.error("getOrdersByMerchant error:", error);
     throw new Error("Failed to fetch merchant orders");
@@ -122,14 +129,15 @@ export async function updateOrderStatus(orderId, updates) {
   try {
     if (!orderId) throw new Error("Order ID required");
 
-    await updateDoc(doc(firestore, "orders", orderId), {
+    await updateDoc(doc(db, "orders", orderId), {
       ...updates,
       updatedAt: serverTimestamp(),
     });
 
     return {
       orderId,
-      updates,
+      ...updates,
+      updatedAt: new Date().toISOString(),
     };
   } catch (error) {
     console.error("updateOrderStatus error:", error);

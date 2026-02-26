@@ -1,4 +1,5 @@
 // src/features/auth/Register.jsx
+
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import { useDispatch, useSelector } from "react-redux";
@@ -63,6 +64,13 @@ const ErrorText = styled.p`
   margin-top: 10px;
 `;
 
+const SuccessText = styled.p`
+  color: #16a34a;
+  font-size: 0.9rem;
+  margin-top: 10px;
+  font-weight: 500;
+`;
+
 const InfoText = styled.p`
   margin-top: 18px;
   font-size: 0.8rem;
@@ -84,6 +92,7 @@ export default function Register() {
   const [name, setName] = useState("");
   const [success, setSuccess] = useState(false);
 
+  /* Clear previous errors */
   useEffect(() => {
     dispatch(clearAuthError());
   }, [dispatch]);
@@ -91,21 +100,32 @@ export default function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (password.length < 6) {
-      return alert("Password must be at least 6 characters.");
+    if (registerStatus === "loading") return;
+
+    if (!name.trim()) {
+      alert("Please enter your full name.");
+      return;
     }
+
+    if (password.length < 6) {
+      alert("Password must be at least 6 characters.");
+      return;
+    }
+
+    setSuccess(false);
 
     const result = await dispatch(
       registerUser({
         email,
         password,
-        profile: { name },
+        profile: { name: name.trim() },
         role,
       })
     );
 
     if (result.meta.requestStatus === "fulfilled") {
       setSuccess(true);
+      setPassword(""); // clear password field
     }
   };
 
@@ -148,6 +168,7 @@ export default function Register() {
             <Select
               value={role}
               onChange={(e) => setRole(e.target.value)}
+              disabled={registerStatus === "loading"}
             >
               <option value="user">Customer</option>
               <option value="merchant">Merchant</option>
@@ -169,9 +190,9 @@ export default function Register() {
         {error && <ErrorText>{error}</ErrorText>}
 
         {success && (
-          <p style={{ color: "green", marginTop: 10 }}>
+          <SuccessText>
             ✅ Registration successful! Please verify your email.
-          </p>
+          </SuccessText>
         )}
 
         <InfoText>

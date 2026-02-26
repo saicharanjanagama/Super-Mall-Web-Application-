@@ -1,5 +1,5 @@
 // src/components/Home/OfferBanners.jsx
-import React from "react";
+import React, { useCallback } from "react";
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
 
@@ -10,6 +10,9 @@ const Wrap = styled.section`
   margin: 60px 0;
 `;
 
+/* ==============================
+   GRID
+================================ */
 const Grid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -17,19 +20,21 @@ const Grid = styled.div`
 `;
 
 /* ==============================
-   BANNER CARD
+   BANNER CARD (Accessible)
 ================================ */
-const Banner = styled.div`
+const Banner = styled.button`
   position: relative;
   padding: 28px 22px;
   border-radius: 20px;
+  border: none;
   color: white;
   cursor: pointer;
   overflow: hidden;
+  text-align: left;
   background: linear-gradient(
     135deg,
-    ${({ g1 }) => g1},
-    ${({ g2 }) => g2}
+    ${({ $g1 }) => $g1},
+    ${({ $g2 }) => $g2}
   );
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.15);
   transition: all 0.35s ease;
@@ -37,6 +42,11 @@ const Banner = styled.div`
   &:hover {
     transform: translateY(-10px) scale(1.02);
     box-shadow: 0 30px 70px rgba(0, 0, 0, 0.25);
+  }
+
+  &:focus-visible {
+    outline: 3px solid white;
+    outline-offset: 3px;
   }
 
   /* Shine animation */
@@ -115,15 +125,24 @@ const offers = [
 export default function OfferBanners() {
   const navigate = useNavigate();
 
+  const handleClick = useCallback(
+    (link) => {
+      navigate(link);
+    },
+    [navigate]
+  );
+
   return (
-    <Wrap>
-      <Grid>
+    <Wrap aria-label="Special Offers">
+      <Grid role="list">
         {offers.map((o) => (
           <Banner
             key={o.id}
-            g1={o.g1}
-            g2={o.g2}
-            onClick={() => navigate(o.link)}
+            role="listitem"
+            aria-label={o.title}
+            $g1={o.g1}
+            $g2={o.g2}
+            onClick={() => handleClick(o.link)}
           >
             <Title>{o.title}</Title>
             <Sub>{o.text}</Sub>

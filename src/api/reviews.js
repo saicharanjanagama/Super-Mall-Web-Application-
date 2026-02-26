@@ -11,9 +11,23 @@ import {
   doc,
   serverTimestamp,
   runTransaction,
+  getDoc,
 } from "firebase/firestore";
 
-import { firestore } from "./firebase";
+import { db } from "./firebase";
+
+/* =========================================================
+   HELPER → Convert Timestamp
+========================================================= */
+const formatDoc = (docItem) => {
+  const data = docItem.data();
+
+  return {
+    id: docItem.id,
+    ...data,
+    createdAt: data.createdAt?.toDate?.().toISOString?.() || null,
+  };
+};
 
 /* =========================================================
    ADD REVIEW (Transaction Safe)
@@ -33,7 +47,7 @@ export const addReview = async ({
       throw new Error("Rating must be between 1 and 5");
     }
 
-    const reviewRef = await addDoc(collection(firestore, "reviews"), {
+    const reviewRef = await addDoc(collection(db, "reviews"), {
       productId,
       userId,
       rating,
@@ -41,9 +55,9 @@ export const addReview = async ({
       createdAt: serverTimestamp(),
     });
 
-    // Transaction: update product rating safely
-    await runTransaction(firestore, async (transaction) => {
-      const productRef = doc(firestore, "products", productId);
+    // Transaction: update product rating
+    await runTransaction(db, async (transaction) => {
+      const productRef = doc(db, "products", productId);
       const productSnap = await transaction.get(productRef);
 
       if (!productSnap.exists()) {
@@ -70,6 +84,7 @@ export const addReview = async ({
       userId,
       rating,
       comment,
+      createdAt: new Date().toISOString(),
     };
   } catch (error) {
     console.error("addReview error:", error);
@@ -85,17 +100,14 @@ export const getReviews = async (productId) => {
     if (!productId) throw new Error("Product ID required");
 
     const q = query(
-      collection(firestore, "reviews"),
+      collection(db, "reviews"),
       where("productId", "==", productId),
       orderBy("createdAt", "desc")
     );
 
     const snap = await getDocs(q);
 
-    return snap.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
-    }));
+    return snap.docs.map(formatDoc);
   } catch (error) {
     console.error("getReviews error:", error);
     throw new Error("Failed to fetch reviews");
@@ -109,29 +121,22 @@ export const deleteReview = async (reviewId) => {
   try {
     if (!reviewId) throw new Error("Review ID required");
 
-    const reviewRef = doc(firestore, "reviews", reviewId);
-    const reviewSnap = await reviewRef.get?.() // fallback safety
-      ? await reviewRef.get()
-      : null;
+    const reviewRef = doc(db, "reviews", reviewId);
+    const reviewSnap = await getDoc(reviewRef);
 
-    // Modular safe fetch:
-    const reviewQuery = await getDocs(
-      query(collection(firestore, "reviews"), where("__name__", "==", reviewId))
-    );
-
-    if (reviewQuery.empty) {
+    if (!reviewSnap.exists()) {
       throw new Error("Review not found");
     }
 
-    const reviewData = reviewQuery.docs[0].data();
+    const reviewData = reviewSnap.data();
     const productId = reviewData.productId;
 
     await deleteDoc(reviewRef);
 
-    // Recalculate product rating
+    // Get remaining reviews
     const reviewsSnap = await getDocs(
       query(
-        collection(firestore, "reviews"),
+        collection(db, "reviews"),
         where("productId", "==", productId)
       )
     );
@@ -144,8 +149,8 @@ export const deleteReview = async (reviewId) => {
         ? 0
         : reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / count;
 
-    await runTransaction(firestore, async (transaction) => {
-      const productRef = doc(firestore, "products", productId);
+    await runTransaction(db, async (transaction) => {
+      const productRef = doc(db, "products", productId);
 
       transaction.update(productRef, {
         reviewCount: count,

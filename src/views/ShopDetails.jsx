@@ -1,6 +1,6 @@
 // src/views/ShopDetails.jsx
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import styled from "styled-components";
 import { useSelector } from "react-redux";
@@ -48,7 +48,7 @@ const Title = styled.h2`
 
 const Info = styled.p`
   margin: 6px 0;
-  color: ${({ theme }) => theme.colors.muted};
+  color: ${({ theme }) => theme.colors.muted || "#666"};
 `;
 
 const Section = styled.div`
@@ -62,7 +62,7 @@ const SectionTitle = styled.h3`
 const Divider = styled.hr`
   margin: 40px 0;
   border: none;
-  border-top: 1px solid ${({ theme }) => theme.colors.muted}33;
+  border-top: 1px solid ${({ theme }) => theme.colors.border || "#eee"};
 `;
 
 const ErrorBox = styled.div`
@@ -83,20 +83,25 @@ export default function ShopDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const user = useSelector((s) => s.auth.user);
+  const user = useSelector((s) => s.auth?.user || null);
+
+  /* ---------- FETCH SHOP ---------- */
 
   useEffect(() => {
+    if (!shopId) return;
+
     let mounted = true;
     setLoading(true);
+    setError(null);
 
     getShop(shopId)
-      .then((s) => {
+      .then((data) => {
         if (!mounted) return;
 
-        if (!s) {
+        if (!data) {
           setError("Shop not found");
         } else {
-          setShop(s);
+          setShop(data);
           logger.info("ViewedShopDetails", { shopId });
         }
       })
@@ -112,6 +117,19 @@ export default function ShopDetails() {
       mounted = false;
     };
   }, [shopId]);
+
+  /* ---------- PERMISSION CHECK ---------- */
+
+  const isOwner = useMemo(() => {
+    if (!user || !shop) return false;
+
+    return (
+      user.role === "merchant" &&
+      user.uid === (shop.owner || shop.ownerId)
+    );
+  }, [user, shop]);
+
+  /* ---------- STATES ---------- */
 
   if (loading)
     return (
@@ -130,8 +148,14 @@ export default function ShopDetails() {
       </Page>
     );
 
-  const isOwner =
-    user?.role === "merchant" && user.uid === shop.owner;
+  if (!shop)
+    return (
+      <Page>
+        <ErrorBox>Shop not found.</ErrorBox>
+      </Page>
+    );
+
+  /* ================= RENDER ================= */
 
   return (
     <Page>
@@ -140,31 +164,31 @@ export default function ShopDetails() {
       {/* ================= SHOP HEADER ================= */}
       <HeaderCard>
         <Title>{shop.name}</Title>
-        <Info><strong>Category:</strong> {shop.category}</Info>
-        <Info><strong>Floor:</strong> {shop.floor}</Info>
-        <Info>{shop.description}</Info>
+        <Info>
+          <strong>Category:</strong> {shop.category || "N/A"}
+        </Info>
+        <Info>
+          <strong>Floor:</strong> {shop.floor || "N/A"}
+        </Info>
+        {shop.description && <Info>{shop.description}</Info>}
       </HeaderCard>
 
-      {/* ================= PRODUCTS SECTION ================= */}
+      {/* ================= PRODUCTS ================= */}
       <Section>
         <SectionTitle>Products</SectionTitle>
 
-        {isOwner && (
-          <ProductForm shopId={shop.id} />
-        )}
+        {isOwner && <ProductForm shopId={shop.id} />}
 
         <ProductList shopId={shop.id} />
       </Section>
 
       <Divider />
 
-      {/* ================= OFFERS SECTION ================= */}
+      {/* ================= OFFERS ================= */}
       <Section>
         <SectionTitle>Offers</SectionTitle>
 
-        {isOwner && (
-          <OfferForm shopId={shop.id} />
-        )}
+        {isOwner && <OfferForm shopId={shop.id} />}
 
         <OfferList shopId={shop.id} />
       </Section>

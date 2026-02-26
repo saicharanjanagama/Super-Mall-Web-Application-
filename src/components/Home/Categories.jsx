@@ -1,5 +1,5 @@
 // src/components/Home/Categories.jsx
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
 
@@ -128,40 +128,56 @@ const NavBtnRight = styled(NavBtn)`
 `;
 
 /* ===============================
-   DEMO DATA (Cleaned)
+   DEMO DATA
 ================================= */
 const demo = [
-  { id: "c1", name: "Clothing", image: "/cats/clothing.jpg" },
-  { id: "c2", name: "Electronics", image: "/cats/electronics.jpg" },
-  { id: "c3", name: "Food", image: "/cats/food.jpg" },
-  { id: "c4", name: "Jewellery", image: "/cats/jewellery.jpg" },
-  { id: "c5", name: "Shoes", image: "/cats/shoes.jpg" },
-  { id: "c6", name: "Home", image: "/cats/home.jpg" },
+  { id: "c1", name: "Clothing", image: "/images/shop-clothing.avif" },
+  { id: "c2", name: "Electronics", image: "/images/electronics.jpg" },
+  { id: "c3", name: "Food", image: "/images/food.jpg" },
+  { id: "c4", name: "Jewellery", image: "/images/jewellery.jpg" },
+  { id: "c5", name: "Shoes", image: "/images/shoes.jpg" },
+  { id: "c6", name: "Home", image: "/images/home.jpg" },
 ];
 
 /* ===============================
    COMPONENT
 ================================= */
 export default function Categories({ items = demo }) {
-  const ref = useRef();
+  const ref = useRef(null);
   const navigate = useNavigate();
-  const [showLeft, setShowLeft] = useState(false);
-  const [showRight, setShowRight] = useState(true);
 
-  const updateButtons = () => {
+  const [showLeft, setShowLeft] = useState(false);
+  const [showRight, setShowRight] = useState(false);
+
+  const updateButtons = useCallback(() => {
     if (!ref.current) return;
+
     const { scrollLeft, scrollWidth, clientWidth } = ref.current;
-    setShowLeft(scrollLeft > 10);
-    setShowRight(scrollLeft + clientWidth < scrollWidth - 10);
-  };
+
+    setShowLeft(scrollLeft > 5);
+    setShowRight(scrollLeft + clientWidth < scrollWidth - 5);
+  }, []);
 
   useEffect(() => {
     updateButtons();
-  }, []);
+
+    const node = ref.current;
+    if (!node) return;
+
+    node.addEventListener("scroll", updateButtons);
+    window.addEventListener("resize", updateButtons);
+
+    return () => {
+      node.removeEventListener("scroll", updateButtons);
+      window.removeEventListener("resize", updateButtons);
+    };
+  }, [updateButtons]);
 
   const scroll = (dir = 1) => {
     if (!ref.current) return;
+
     const width = ref.current.clientWidth;
+
     ref.current.scrollBy({
       left: dir * width * 0.7,
       behavior: "smooth",
@@ -174,19 +190,38 @@ export default function Categories({ items = demo }) {
 
       <RowContainer>
         {showLeft && (
-          <NavBtnLeft onClick={() => scroll(-1)}>‹</NavBtnLeft>
+          <NavBtnLeft
+            onClick={() => scroll(-1)}
+            aria-label="Scroll left"
+          >
+            ‹
+          </NavBtnLeft>
         )}
 
-        <Row ref={ref} onScroll={updateButtons}>
+        <Row
+          ref={ref}
+          role="list"
+          aria-label="Category list"
+        >
           {items.map((c) => (
             <Cat
               key={c.id}
+              role="listitem"
+              aria-label={`Browse ${c.name}`}
               onClick={() =>
-                navigate(`/search?q=${encodeURIComponent(c.name)}`)
+                navigate(
+                  `/search?q=${encodeURIComponent(c.name)}`
+                )
               }
             >
               <Thumb>
-                {c.image && <img src={c.image} alt={c.name} />}
+                {c.image && (
+                  <img
+                    src={c.image}
+                    alt={c.name}
+                    loading="lazy"
+                  />
+                )}
               </Thumb>
               <Label>{c.name}</Label>
             </Cat>
@@ -194,7 +229,12 @@ export default function Categories({ items = demo }) {
         </Row>
 
         {showRight && (
-          <NavBtnRight onClick={() => scroll(1)}>›</NavBtnRight>
+          <NavBtnRight
+            onClick={() => scroll(1)}
+            aria-label="Scroll right"
+          >
+            ›
+          </NavBtnRight>
         )}
       </RowContainer>
     </Wrap>

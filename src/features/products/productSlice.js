@@ -1,4 +1,5 @@
 // src/features/products/productSlice.js
+
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import {
   createProduct,
@@ -46,7 +47,7 @@ export const fetchProducts = createAsyncThunk(
   async (shopId = null, { rejectWithValue }) => {
     try {
       const products = await getProducts(shopId);
-      return { products: products || [], shopId };
+      return products || [];
     } catch (err) {
       return rejectWithValue(
         err.message || "Failed to fetch products"
@@ -120,7 +121,10 @@ const productSlice = createSlice({
 
   initialState: {
     products: [],
-    status: "idle", // idle | loading | creating | updating | deleting | failed
+    fetchStatus: "idle",
+    createStatus: "idle",
+    updateStatus: "idle",
+    deleteStatus: "idle",
     error: null,
     editingProduct: null,
   },
@@ -136,37 +140,39 @@ const productSlice = createSlice({
 
     resetProducts(state) {
       state.products = [];
-      state.status = "idle";
+      state.fetchStatus = "idle";
+      state.createStatus = "idle";
+      state.updateStatus = "idle";
+      state.deleteStatus = "idle";
       state.error = null;
     },
   },
 
   extraReducers: (builder) => {
-    /* ================= FETCH ================= */
     builder
+
+      /* ================= FETCH ================= */
       .addCase(fetchProducts.pending, (state) => {
-        state.status = "loading";
+        state.fetchStatus = "loading";
         state.error = null;
       })
       .addCase(fetchProducts.fulfilled, (state, action) => {
-        state.status = "idle";
-        state.products = action.payload.products || [];
+        state.fetchStatus = "idle";
+        state.products = action.payload ?? [];
       })
       .addCase(fetchProducts.rejected, (state, action) => {
-        state.status = "failed";
+        state.fetchStatus = "failed";
         state.error = action.payload;
-      });
+      })
 
-    /* ================= ADD ================= */
-    builder
+      /* ================= ADD ================= */
       .addCase(addProduct.pending, (state) => {
-        state.status = "creating";
+        state.createStatus = "loading";
         state.error = null;
       })
       .addCase(addProduct.fulfilled, (state, action) => {
-        state.status = "idle";
+        state.createStatus = "idle";
 
-        // prevent duplicates
         const exists = state.products.find(
           (p) => p.id === action.payload.id
         );
@@ -176,18 +182,17 @@ const productSlice = createSlice({
         }
       })
       .addCase(addProduct.rejected, (state, action) => {
-        state.status = "failed";
+        state.createStatus = "failed";
         state.error = action.payload;
-      });
+      })
 
-    /* ================= EDIT ================= */
-    builder
+      /* ================= EDIT ================= */
       .addCase(editProduct.pending, (state) => {
-        state.status = "updating";
+        state.updateStatus = "loading";
         state.error = null;
       })
       .addCase(editProduct.fulfilled, (state, action) => {
-        state.status = "idle";
+        state.updateStatus = "idle";
 
         const { id, updates } = action.payload;
 
@@ -198,24 +203,23 @@ const productSlice = createSlice({
         state.editingProduct = null;
       })
       .addCase(editProduct.rejected, (state, action) => {
-        state.status = "failed";
+        state.updateStatus = "failed";
         state.error = action.payload;
-      });
+      })
 
-    /* ================= DELETE ================= */
-    builder
+      /* ================= DELETE ================= */
       .addCase(removeProduct.pending, (state) => {
-        state.status = "deleting";
+        state.deleteStatus = "loading";
         state.error = null;
       })
       .addCase(removeProduct.fulfilled, (state, action) => {
-        state.status = "idle";
+        state.deleteStatus = "idle";
         state.products = state.products.filter(
           (p) => p.id !== action.payload
         );
       })
       .addCase(removeProduct.rejected, (state, action) => {
-        state.status = "failed";
+        state.deleteStatus = "failed";
         state.error = action.payload;
       });
   },
@@ -228,8 +232,17 @@ const productSlice = createSlice({
 export const selectAllProducts = (state) =>
   state.products.products;
 
-export const selectProductStatus = (state) =>
-  state.products.status;
+export const selectProductFetchStatus = (state) =>
+  state.products.fetchStatus;
+
+export const selectProductCreateStatus = (state) =>
+  state.products.createStatus;
+
+export const selectProductUpdateStatus = (state) =>
+  state.products.updateStatus;
+
+export const selectProductDeleteStatus = (state) =>
+  state.products.deleteStatus;
 
 export const selectProductError = (state) =>
   state.products.error;

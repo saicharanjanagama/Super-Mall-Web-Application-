@@ -11,7 +11,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 
-import { firestore } from "./firebase";
+import { db } from "./firebase";
 
 /* =========================================================
    ADD TO WISHLIST
@@ -26,7 +26,7 @@ export const addWishlist = async ({ userId, productId }) => {
     const wishlistId = `${userId}_${productId}`;
 
     await setDoc(
-      doc(firestore, "wishlist", wishlistId),
+      doc(db, "wishlist", wishlistId),
       {
         userId,
         productId,
@@ -34,7 +34,10 @@ export const addWishlist = async ({ userId, productId }) => {
       }
     );
 
-    return productId;
+    return {
+      productId,
+      addedAt: new Date().toISOString(),
+    };
   } catch (error) {
     console.error("addWishlist error:", error);
     throw new Error("Failed to add to wishlist");
@@ -52,7 +55,7 @@ export const removeWishlist = async ({ userId, productId }) => {
 
     const wishlistId = `${userId}_${productId}`;
 
-    await deleteDoc(doc(firestore, "wishlist", wishlistId));
+    await deleteDoc(doc(db, "wishlist", wishlistId));
 
     return productId;
   } catch (error) {
@@ -69,7 +72,7 @@ export const getWishlist = async (userId) => {
     if (!userId) throw new Error("User ID required");
 
     const q = query(
-      collection(firestore, "wishlist"),
+      collection(db, "wishlist"),
       where("userId", "==", userId)
     );
 

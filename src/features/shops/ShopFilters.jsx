@@ -48,25 +48,33 @@ export default function ShopFilters() {
   const filters = useSelector((s) => s.shops.filters);
 
   const [searchInput, setSearchInput] = useState(
-    filters.search
+    filters.search || ""
   );
 
-  /* ================= Debounce Search ================= */
+  /* ================= Sync Redux → Local ================= */
+  useEffect(() => {
+    setSearchInput(filters.search || "");
+  }, [filters.search]);
+
+  /* ================= Debounced Search ================= */
   useEffect(() => {
     const timer = setTimeout(() => {
-      dispatch(
-        setShopFilters({
-          search: searchInput,
-        })
-      );
+      if (searchInput !== filters.search) {
+        dispatch(
+          setShopFilters({
+            search: searchInput,
+          })
+        );
+      }
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [searchInput, dispatch]);
+  }, [searchInput, filters.search, dispatch]);
 
   /* ================= Reset Filters ================= */
   const resetFilters = () => {
     setSearchInput("");
+
     dispatch(
       setShopFilters({
         search: "",
@@ -87,7 +95,7 @@ export default function ShopFilters() {
       />
 
       <Select
-        value={filters.category}
+        value={filters.category || ""}
         onChange={(e) =>
           dispatch(
             setShopFilters({
@@ -96,28 +104,16 @@ export default function ShopFilters() {
           )
         }
       >
-        <option value="">
-          All Categories
-        </option>
-        <option value="Clothing">
-          Clothing
-        </option>
-        <option value="Electronics">
-          Electronics
-        </option>
-        <option value="Food">
-          Food
-        </option>
-        <option value="Jewellery">
-          Jewellery
-        </option>
-        <option value="Sports">
-          Sports
-        </option>
+        <option value="">All Categories</option>
+        <option value="Clothing">Clothing</option>
+        <option value="Electronics">Electronics</option>
+        <option value="Food">Food</option>
+        <option value="Jewellery">Jewellery</option>
+        <option value="Sports">Sports</option>
       </Select>
 
       <Select
-        value={filters.floor}
+        value={filters.floor || ""}
         onChange={(e) =>
           dispatch(
             setShopFilters({
@@ -126,21 +122,11 @@ export default function ShopFilters() {
           )
         }
       >
-        <option value="">
-          All Floors
-        </option>
-        <option value="ground">
-          Ground Floor
-        </option>
-        <option value="1">
-          1st Floor
-        </option>
-        <option value="2">
-          2nd Floor
-        </option>
-        <option value="3">
-          3rd Floor
-        </option>
+        <option value="">All Floors</option>
+        <option value="ground">Ground Floor</option>
+        <option value="1">1st Floor</option>
+        <option value="2">2nd Floor</option>
+        <option value="3">3rd Floor</option>
       </Select>
 
       <Button onClick={resetFilters}>

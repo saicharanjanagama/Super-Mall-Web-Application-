@@ -1,4 +1,5 @@
 // src/features/admin/AdminDashboard.jsx
+
 import React, { useEffect } from "react";
 import styled from "styled-components";
 import { useDispatch, useSelector } from "react-redux";
@@ -55,16 +56,18 @@ const Badge = styled.span`
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: capitalize;
-  background: ${({ status }) =>
-    status === "approved"
+
+  background: ${({ $status }) =>
+    $status === "approved"
       ? "#d4edda"
-      : status === "rejected"
+      : $status === "rejected"
       ? "#f8d7da"
       : "#fff3cd"};
-  color: ${({ status }) =>
-    status === "approved"
+
+  color: ${({ $status }) =>
+    $status === "approved"
       ? "#155724"
-      : status === "rejected"
+      : $status === "rejected"
       ? "#721c24"
       : "#856404"};
 `;
@@ -130,7 +133,7 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                <Badge status={u.role}>
+                <Badge $status={u.role}>
                   {u.role}
                 </Badge>
               </Row>
@@ -162,7 +165,7 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                <Badge status={shop.status || "pending"}>
+                <Badge $status={shop.status || "pending"}>
                   {shop.status || "pending"}
                 </Badge>
               </Row>
@@ -215,10 +218,8 @@ export default function AdminDashboard() {
         {logs.map((log) => (
           <LogItem key={log.id}>
             📘 <strong>{log.event}</strong> —{" "}
-            {log.timestamp?.seconds
-              ? new Date(
-                  log.timestamp.seconds * 1000
-                ).toLocaleString()
+            {log.timestamp
+              ? new Date(log.timestamp).toLocaleString()
               : "N/A"}
           </LogItem>
         ))}

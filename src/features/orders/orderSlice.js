@@ -1,4 +1,5 @@
 // src/features/orders/orderSlice.js
+
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import {
   createOrder as apiCreateOrder,
@@ -19,15 +20,14 @@ export const createOrder = createAsyncThunk(
       const created = await apiCreateOrder(order);
 
       if (paymentProofFile) {
-        const url = await uploadPaymentProofToCloudinary(
-          paymentProofFile
-        );
+        const uploadResult =
+          await uploadPaymentProofToCloudinary(paymentProofFile);
 
         await apiUpdateOrderStatus(created.id, {
-          paymentProofUrl: url,
+          paymentProofUrl: uploadResult.url,
         });
 
-        created.paymentProofUrl = url;
+        created.paymentProofUrl = uploadResult.url;
       }
 
       return created;
@@ -115,7 +115,11 @@ const slice = createSlice({
     userOrders: [],
     merchantOrders: [],
     adminOrders: [],
-    status: "idle", // idle | loading | creating | updating | failed
+
+    createStatus: "idle",
+    fetchStatus: "idle",
+    updateStatus: "idle",
+
     error: null,
   },
 
@@ -129,71 +133,26 @@ const slice = createSlice({
     /* ================= CREATE ================= */
     builder
       .addCase(createOrder.pending, (state) => {
-        state.status = "creating";
+        state.createStatus = "loading";
         state.error = null;
       })
       .addCase(createOrder.fulfilled, (state, action) => {
-        state.status = "idle";
+        state.createStatus = "idle";
         state.userOrders.unshift(action.payload);
       })
       .addCase(createOrder.rejected, (state, action) => {
-        state.status = "failed";
+        state.createStatus = "failed";
         state.error = action.payload;
       });
 
-    /* ================= FETCH USER ================= */
-    builder
-      .addCase(fetchUserOrders.pending, (state) => {
-        state.status = "loading";
-        state.error = null;
-      })
-      .addCase(fetchUserOrders.fulfilled, (state, action) => {
-        state.status = "idle";
-        state.userOrders = action.payload || [];
-      })
-      .addCase(fetchUserOrders.rejected, (state, action) => {
-        state.status = "failed";
-        state.error = action.payload;
-      });
-
-    /* ================= FETCH ADMIN ================= */
-    builder
-      .addCase(fetchAllOrders.pending, (state) => {
-        state.status = "loading";
-        state.error = null;
-      })
-      .addCase(fetchAllOrders.fulfilled, (state, action) => {
-        state.status = "idle";
-        state.adminOrders = action.payload || [];
-      })
-      .addCase(fetchAllOrders.rejected, (state, action) => {
-        state.status = "failed";
-        state.error = action.payload;
-      });
-
-    /* ================= FETCH MERCHANT ================= */
-    builder
-      .addCase(fetchOrdersByMerchant.pending, (state) => {
-        state.status = "loading";
-        state.error = null;
-      })
-      .addCase(fetchOrdersByMerchant.fulfilled, (state, action) => {
-        state.status = "idle";
-        state.merchantOrders = action.payload || [];
-      })
-      .addCase(fetchOrdersByMerchant.rejected, (state, action) => {
-        state.status = "failed";
-        state.error = action.payload;
-      });
-
-    /* ================= UPDATE STATUS ================= */
+    /* ================= UPDATE ================= */
     builder
       .addCase(updateOrderStatus.pending, (state) => {
-        state.status = "updating";
+        state.updateStatus = "loading";
         state.error = null;
       })
       .addCase(updateOrderStatus.fulfilled, (state, action) => {
-        state.status = "idle";
+        state.updateStatus = "idle";
 
         const { orderId, updates } = action.payload;
 
@@ -207,14 +166,53 @@ const slice = createSlice({
         state.adminOrders = updateList(state.adminOrders);
       })
       .addCase(updateOrderStatus.rejected, (state, action) => {
-        state.status = "failed";
+        state.updateStatus = "failed";
         state.error = action.payload;
       });
+
+    /* ================= FETCH MATCHERS ================= */
+    builder
+      .addMatcher(
+        (action) =>
+          action.type.startsWith("orders/fetch") &&
+          action.type.endsWith("/pending"),
+        (state) => {
+          state.fetchStatus = "loading";
+          state.error = null;
+        }
+      )
+      .addMatcher(
+        (action) =>
+          action.type.startsWith("orders/fetch") &&
+          action.type.endsWith("/fulfilled"),
+        (state, action) => {
+          state.fetchStatus = "idle";
+
+          if (action.type.includes("fetchUserOrders")) {
+            state.userOrders = action.payload ?? [];
+          } else if (action.type.includes("fetchAllOrders")) {
+            state.adminOrders = action.payload ?? [];
+          } else if (
+            action.type.includes("fetchOrdersByMerchant")
+          ) {
+            state.merchantOrders = action.payload ?? [];
+          }
+        }
+      )
+      .addMatcher(
+        (action) =>
+          action.type.startsWith("orders/fetch") &&
+          action.type.endsWith("/rejected"),
+        (state, action) => {
+          state.fetchStatus = "failed";
+          state.error = action.payload;
+        }
+      );
   },
 });
 
 /* =====================================================
-   SELECTORS (Professional Way)
+   SELECTORS
 ===================================================== */
 
 export const selectUserOrders = (state) =>
@@ -226,15 +224,18 @@ export const selectMerchantOrders = (state) =>
 export const selectAdminOrders = (state) =>
   state.orders.adminOrders;
 
-export const selectOrderStatus = (state) =>
-  state.orders.status;
+export const selectOrderCreateStatus = (state) =>
+  state.orders.createStatus;
+
+export const selectOrderFetchStatus = (state) =>
+  state.orders.fetchStatus;
+
+export const selectOrderUpdateStatus = (state) =>
+  state.orders.updateStatus;
 
 export const selectOrderError = (state) =>
   state.orders.error;
 
-/* =====================================================
-   EXPORT
-===================================================== */
-
 export const { clearOrderError } = slice.actions;
+
 export default slice.reducer;

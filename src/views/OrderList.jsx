@@ -1,9 +1,14 @@
 // src/views/OrderList.jsx
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import styled from "styled-components";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchUserOrders } from "../features/orders/orderSlice";
+import {
+  fetchUserOrders,
+  selectUserOrders,
+  selectOrderFetchStatus,
+  selectOrderError,
+} from "../features/orders/orderSlice";
 
 /* ===================== STYLES ===================== */
 
@@ -40,7 +45,7 @@ const StatusBadge = styled.span`
     status === "Delivered"
       ? "#16a34a"
       : status === "Cancelled"
-      ? theme.colors.danger
+      ? theme.colors.danger || "#dc2626"
       : status === "Shipped"
       ? "#0284c7"
       : "#f59e0b"};
@@ -49,7 +54,7 @@ const StatusBadge = styled.span`
 
 const Items = styled.div`
   margin-top: 15px;
-  border-top: 1px solid ${({ theme }) => theme.colors.muted};
+  border-top: 1px solid ${({ theme }) => theme.colors.border || "#eee"};
   padding-top: 10px;
 `;
 
@@ -80,17 +85,27 @@ export default function OrderList() {
   const dispatch = useDispatch();
   const user = useSelector((s) => s.auth.user);
 
-  const { list: orders = [], loading } = useSelector(
-    (s) => s.orders || {}
-  );
+  const orders = useSelector(selectUserOrders);
+  const fetchStatus = useSelector(selectOrderFetchStatus);
+  const error = useSelector(selectOrderError);
 
   const [expanded, setExpanded] = useState(null);
 
+  /* ===== FETCH ORDERS ===== */
   useEffect(() => {
-    if (user) {
+    if (user?.uid) {
       dispatch(fetchUserOrders(user.uid));
     }
-  }, [user, dispatch]);
+  }, [user?.uid, dispatch]);
+
+  /* ===== SORT NEWEST FIRST ===== */
+  const sortedOrders = useMemo(() => {
+    return [...orders].sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() -
+        new Date(a.createdAt).getTime()
+    );
+  }, [orders]);
 
   if (!user) {
     return (
@@ -100,7 +115,7 @@ export default function OrderList() {
     );
   }
 
-  if (loading) {
+  if (fetchStatus === "loading") {
     return (
       <Page>
         <EmptyState>Loading orders…</EmptyState>
@@ -108,7 +123,17 @@ export default function OrderList() {
     );
   }
 
-  if (orders.length === 0) {
+  if (fetchStatus === "failed") {
+    return (
+      <Page>
+        <EmptyState>
+          {error || "Failed to load orders."}
+        </EmptyState>
+      </Page>
+    );
+  }
+
+  if (!sortedOrders.length) {
     return (
       <Page>
         <EmptyState>No orders found.</EmptyState>
@@ -120,13 +145,14 @@ export default function OrderList() {
     <Page>
       <Title>My Orders</Title>
 
-      {orders.map((o) => {
+      {sortedOrders.map((o) => {
         const created =
-          o.createdAt?.seconds
+          o?.createdAt?.seconds
             ? new Date(o.createdAt.seconds * 1000)
             : new Date(o.createdAt);
 
         const isOpen = expanded === o.id;
+        const total = Number(o.total) || 0;
 
         return (
           <Card key={o.id}>
@@ -139,11 +165,11 @@ export default function OrderList() {
 
               <div style={{ textAlign: "right" }}>
                 <StatusBadge status={o.status}>
-                  {o.status}
+                  {o.status || "Pending"}
                 </StatusBadge>
                 <br />
                 <strong>
-                  ₹{o.total?.toLocaleString("en-IN")}
+                  ₹{total.toLocaleString("en-IN")}
                 </strong>
               </div>
             </Row>
@@ -158,19 +184,22 @@ export default function OrderList() {
 
             {isOpen && (
               <Items>
-                {o.items?.map((i) => (
-                  <ItemRow key={i.id}>
-                    <span>
-                      {i.name} × {i.qty}
-                    </span>
-                    <span>
-                      ₹
-                      {(
-                        i.price * i.qty
-                      ).toLocaleString("en-IN")}
-                    </span>
-                  </ItemRow>
-                ))}
+                {(o.items || []).map((i) => {
+                  const price = Number(i.price) || 0;
+                  const qty = Number(i.qty) || 0;
+
+                  return (
+                    <ItemRow key={i.id}>
+                      <span>
+                        {i.name} × {qty}
+                      </span>
+                      <span>
+                        ₹
+                        {(price * qty).toLocaleString("en-IN")}
+                      </span>
+                    </ItemRow>
+                  );
+                })}
               </Items>
             )}
           </Card>

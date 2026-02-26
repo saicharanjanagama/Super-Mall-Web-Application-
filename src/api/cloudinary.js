@@ -7,18 +7,18 @@ export async function uploadToCloudinary(file, options = {}) {
   }
 
   if (!file) {
-    throw new Error("No file provided for upload");
+    throw new Error("No file provided");
   }
 
   /* =========================
      FILE VALIDATION
   ========================= */
 
-  const maxSizeMB = options.maxSizeMB || 5; // default 5MB
-  const allowedTypes = options.allowedTypes || [
+  const maxSizeMB = options.maxSizeMB ?? 5;
+  const allowedTypes = options.allowedTypes ?? [
     "image/jpeg",
     "image/png",
-    "image/webp"
+    "image/webp",
   ];
 
   if (!allowedTypes.includes(file.type)) {
@@ -26,11 +26,11 @@ export async function uploadToCloudinary(file, options = {}) {
   }
 
   if (file.size > maxSizeMB * 1024 * 1024) {
-    throw new Error(`File size exceeds ${maxSizeMB}MB`);
+    throw new Error(`File exceeds ${maxSizeMB}MB`);
   }
 
   /* =========================
-     PREPARE UPLOAD
+     UPLOAD
   ========================= */
 
   const url = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
@@ -43,12 +43,8 @@ export async function uploadToCloudinary(file, options = {}) {
     formData.append("folder", options.folder);
   }
 
-  /* =========================
-     FETCH WITH TIMEOUT
-  ========================= */
-
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20000); // 20s timeout
+  const timeout = setTimeout(() => controller.abort(), 20000);
 
   try {
     const res = await fetch(url, {
@@ -60,25 +56,24 @@ export async function uploadToCloudinary(file, options = {}) {
     clearTimeout(timeout);
 
     if (!res.ok) {
-      throw new Error("Cloudinary network error");
+      throw new Error("Upload failed. Please try again.");
     }
 
     const data = await res.json();
 
-    if (data.secure_url) {
-      return {
-        url: data.secure_url,
-        publicId: data.public_id,
-        width: data.width,
-        height: data.height,
-      };
+    if (!data.secure_url) {
+      throw new Error(data.error?.message || "Upload error");
     }
 
-    throw new Error(data.error?.message || "Cloudinary upload failed");
-
+    return {
+      url: data.secure_url,
+      publicId: data.public_id,
+      width: data.width,
+      height: data.height,
+    };
   } catch (err) {
     if (err.name === "AbortError") {
-      throw new Error("Upload timeout. Please try again.");
+      throw new Error("Upload timeout. Try again.");
     }
 
     throw new Error(err.message || "Upload failed");

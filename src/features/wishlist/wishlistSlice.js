@@ -32,53 +32,43 @@ export const fetchWishlist = createAsyncThunk(
    ADD ITEM
 ===================================================== */
 
-export const addWishlistItem =
-  createAsyncThunk(
-    "wishlist/add",
-    async (
-      { userId, productId },
-      { rejectWithValue }
-    ) => {
-      try {
-        await addWishlist({
-          userId,
-          productId,
-        });
-        return productId;
-      } catch (err) {
-        return rejectWithValue(
-          err.message ||
-            "Failed to add to wishlist"
-        );
-      }
+export const addWishlistItem = createAsyncThunk(
+  "wishlist/add",
+  async (
+    { userId, productId },
+    { rejectWithValue }
+  ) => {
+    try {
+      await addWishlist({ userId, productId });
+      return productId;
+    } catch (err) {
+      return rejectWithValue(
+        err.message || "Failed to add to wishlist"
+      );
     }
-  );
+  }
+);
 
 /* =====================================================
    REMOVE ITEM
 ===================================================== */
 
-export const removeWishlistItem =
-  createAsyncThunk(
-    "wishlist/remove",
-    async (
-      { userId, productId },
-      { rejectWithValue }
-    ) => {
-      try {
-        await removeWishlist({
-          userId,
-          productId,
-        });
-        return productId;
-      } catch (err) {
-        return rejectWithValue(
-          err.message ||
-            "Failed to remove from wishlist"
-        );
-      }
+export const removeWishlistItem = createAsyncThunk(
+  "wishlist/remove",
+  async (
+    { userId, productId },
+    { rejectWithValue }
+  ) => {
+    try {
+      await removeWishlist({ userId, productId });
+      return productId;
+    } catch (err) {
+      return rejectWithValue(
+        err.message || "Failed to remove from wishlist"
+      );
     }
-  );
+  }
+);
 
 /* =====================================================
    SLICE
@@ -89,89 +79,87 @@ const wishlistSlice = createSlice({
 
   initialState: {
     items: [], // productId[]
-    status: "idle", // idle | loading | failed
+    fetchStatus: "idle",
+    actionStatus: "idle", // add/remove status
     error: null,
   },
 
   reducers: {
     clearWishlist(state) {
       state.items = [];
-      state.status = "idle";
+      state.fetchStatus = "idle";
+      state.actionStatus = "idle";
       state.error = null;
     },
   },
 
   extraReducers: (builder) => {
-    /* ================= FETCH ================= */
     builder
+
+      /* ================= FETCH ================= */
       .addCase(fetchWishlist.pending, (state) => {
-        state.status = "loading";
+        state.fetchStatus = "loading";
         state.error = null;
       })
-      .addCase(
-        fetchWishlist.fulfilled,
-        (state, action) => {
-          state.status = "idle";
-          state.items = action.payload || [];
-        }
-      )
-      .addCase(
-        fetchWishlist.rejected,
-        (state, action) => {
-          state.status = "failed";
-          state.error = action.payload;
-        }
-      );
+      .addCase(fetchWishlist.fulfilled, (state, action) => {
+        state.fetchStatus = "idle";
+        state.items = action.payload || [];
+      })
+      .addCase(fetchWishlist.rejected, (state, action) => {
+        state.fetchStatus = "failed";
+        state.error = action.payload;
+      })
 
-    /* ================= ADD ================= */
-    builder
-      .addCase(
-        addWishlistItem.pending,
-        (state, action) => {
-          state.error = null;
+      /* ================= ADD ================= */
+      .addCase(addWishlistItem.pending, (state, action) => {
+        state.actionStatus = "loading";
+        state.error = null;
 
-          // optimistic update
-          const productId =
-            action.meta.arg.productId;
+        const productId = action.meta.arg.productId;
 
-          if (
-            !state.items.includes(productId)
-          ) {
-            state.items.push(productId);
-          }
+        // Optimistic update
+        if (!state.items.includes(productId)) {
+          state.items.push(productId);
         }
-      )
-      .addCase(
-        addWishlistItem.rejected,
-        (state, action) => {
-          state.status = "failed";
-          state.error = action.payload;
-        }
-      );
+      })
+      .addCase(addWishlistItem.fulfilled, (state) => {
+        state.actionStatus = "idle";
+      })
+      .addCase(addWishlistItem.rejected, (state, action) => {
+        state.actionStatus = "failed";
+        state.error = action.payload;
 
-    /* ================= REMOVE ================= */
-    builder
-      .addCase(
-        removeWishlistItem.pending,
-        (state, action) => {
-          state.error = null;
+        // Rollback optimistic update
+        const productId = action.meta.arg.productId;
+        state.items = state.items.filter(
+          (id) => id !== productId
+        );
+      })
 
-          // optimistic removal
-          const productId =
-            action.meta.arg.productId;
+      /* ================= REMOVE ================= */
+      .addCase(removeWishlistItem.pending, (state, action) => {
+        state.actionStatus = "loading";
+        state.error = null;
 
-          state.items = state.items.filter(
-            (id) => id !== productId
-          );
+        // Optimistic removal
+        const productId = action.meta.arg.productId;
+        state.items = state.items.filter(
+          (id) => id !== productId
+        );
+      })
+      .addCase(removeWishlistItem.fulfilled, (state) => {
+        state.actionStatus = "idle";
+      })
+      .addCase(removeWishlistItem.rejected, (state, action) => {
+        state.actionStatus = "failed";
+        state.error = action.payload;
+
+        // Rollback removal
+        const productId = action.meta.arg.productId;
+        if (!state.items.includes(productId)) {
+          state.items.push(productId);
         }
-      )
-      .addCase(
-        removeWishlistItem.rejected,
-        (state, action) => {
-          state.status = "failed";
-          state.error = action.payload;
-        }
-      );
+      });
   },
 });
 
@@ -182,8 +170,11 @@ const wishlistSlice = createSlice({
 export const selectWishlistItems = (state) =>
   state.wishlist.items;
 
-export const selectWishlistStatus = (state) =>
-  state.wishlist.status;
+export const selectWishlistFetchStatus = (state) =>
+  state.wishlist.fetchStatus;
+
+export const selectWishlistActionStatus = (state) =>
+  state.wishlist.actionStatus;
 
 export const selectWishlistError = (state) =>
   state.wishlist.error;

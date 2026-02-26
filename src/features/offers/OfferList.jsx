@@ -1,4 +1,5 @@
 // src/features/offers/OfferList.jsx
+
 import React, { useEffect } from "react";
 import styled from "styled-components";
 import { useDispatch, useSelector } from "react-redux";
@@ -6,7 +7,8 @@ import {
   fetchOffers,
   removeOffer,
   setEditingOffer,
-  selectOfferStatus,
+  selectOfferFetchStatus,
+  selectOfferDeleteStatus,
   selectOffersByShop,
 } from "./offerSlice";
 
@@ -51,10 +53,12 @@ const Badge = styled.span`
   padding: 4px 8px;
   border-radius: 6px;
   font-size: 12px;
-  background: ${({ expired }) =>
-    expired ? "#ffe6e6" : "#e6f4ff"};
-  color: ${({ expired }) =>
-    expired ? "#d93025" : "#0066ff"};
+
+  background: ${({ $expired }) =>
+    $expired ? "#ffe6e6" : "#e6f4ff"};
+
+  color: ${({ $expired }) =>
+    $expired ? "#d93025" : "#0066ff"};
 `;
 
 const Button = styled.button`
@@ -63,13 +67,19 @@ const Button = styled.button`
   border: none;
   cursor: pointer;
   font-weight: 500;
-  background: ${({ danger }) =>
-    danger ? "#ff4d4f" : "#0066ff"};
   color: white;
   margin-left: 8px;
 
+  background: ${({ $danger }) =>
+    $danger ? "#ff4d4f" : "#0066ff"};
+
   &:hover {
     opacity: 0.85;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 `;
 
@@ -84,7 +94,10 @@ const Empty = styled.p`
 
 export default function OfferList({ shopId, ownerId }) {
   const dispatch = useDispatch();
-  const status = useSelector(selectOfferStatus);
+
+  const fetchStatus = useSelector(selectOfferFetchStatus);
+  const deleteStatus = useSelector(selectOfferDeleteStatus);
+
   const offers = useSelector(selectOffersByShop(shopId));
   const user = useSelector((s) => s.auth.user);
 
@@ -94,8 +107,11 @@ export default function OfferList({ shopId, ownerId }) {
     }
   }, [dispatch, shopId]);
 
-  if (status === "loading") return <p>Loading offers...</p>;
-  if (!offers.length) return <Empty>No offers yet.</Empty>;
+  if (fetchStatus === "loading")
+    return <p>Loading offers...</p>;
+
+  if (!offers.length)
+    return <Empty>No offers yet.</Empty>;
 
   const isOwner =
     user?.role === "merchant" && user?.uid === ownerId;
@@ -104,7 +120,12 @@ export default function OfferList({ shopId, ownerId }) {
     <Wrapper>
       {offers.map((o) => {
         const expired =
-          o.expiry && new Date(o.expiry) < new Date();
+          o.expiry &&
+          new Date(o.expiry) < new Date();
+
+        const formattedExpiry = o.expiry
+          ? new Date(o.expiry).toLocaleDateString()
+          : null;
 
         return (
           <Card key={o.id}>
@@ -118,16 +139,18 @@ export default function OfferList({ shopId, ownerId }) {
                 </Discount>
               </div>
 
-              {o.expiry && (
-                <Badge expired={expired}>
+              {formattedExpiry && (
+                <Badge $expired={expired}>
                   {expired
                     ? "Expired"
-                    : `Expires ${o.expiry}`}
+                    : `Expires ${formattedExpiry}`}
                 </Badge>
               )}
             </TitleRow>
 
-            <Description>{o.description}</Description>
+            <Description>
+              {o.description}
+            </Description>
 
             {isOwner && (
               <div style={{ marginTop: 10 }}>
@@ -140,12 +163,17 @@ export default function OfferList({ shopId, ownerId }) {
                 </Button>
 
                 <Button
-                  danger
+                  $danger
+                  disabled={
+                    deleteStatus === "loading"
+                  }
                   onClick={() =>
                     dispatch(removeOffer(o.id))
                   }
                 >
-                  Delete
+                  {deleteStatus === "loading"
+                    ? "Deleting..."
+                    : "Delete"}
                 </Button>
               </div>
             )}

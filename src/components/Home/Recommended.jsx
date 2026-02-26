@@ -1,5 +1,5 @@
 // src/components/Home/Recommended.jsx
-import React from "react";
+import React, { useCallback } from "react";
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
 
@@ -26,12 +26,15 @@ const Grid = styled.div`
 `;
 
 /* ============================
-   CARD
+   CARD (Accessible)
 ============================ */
-const Card = styled.div`
+const Card = styled.button`
   background: ${({ theme }) => theme.colors.surface};
   border-radius: 18px;
   overflow: hidden;
+  border: none;
+  padding: 0;
+  text-align: left;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
   cursor: pointer;
   transition: all 0.3s ease;
@@ -39,6 +42,11 @@ const Card = styled.div`
   &:hover {
     transform: translateY(-8px);
     box-shadow: 0 25px 60px rgba(0, 0, 0, 0.18);
+  }
+
+  &:focus-visible {
+    outline: 3px solid ${({ theme }) => theme.colors.primary};
+    outline-offset: 3px;
   }
 `;
 
@@ -127,51 +135,76 @@ const AddBtn = styled.button`
 export default function Recommended({ products = [], addToCart }) {
   const navigate = useNavigate();
 
+  const handleNavigate = useCallback(
+    (id) => navigate(`/product/${id}`),
+    [navigate]
+  );
+
+  if (!products.length) return null;
+
   return (
-    <Section>
-      <Title>Recommended For You</Title>
+    <Section aria-labelledby="recommended-title">
+      <Title id="recommended-title">
+        Recommended For You
+      </Title>
 
-      <Grid>
-        {products.slice(0, 8).map((p) => (
-          <Card
-            key={p.id}
-            onClick={() => navigate(`/product/${p.id}`)}
-          >
-            <ImgWrap>
-              {p.imageUrl && <Img src={p.imageUrl} alt={p.name} />}
-              {p.discount && <Badge>{p.discount}% OFF</Badge>}
-            </ImgWrap>
+      <Grid role="list">
+        {products.slice(0, 8).map((p) => {
+          const rating =
+            typeof p.avgRating === "number"
+              ? p.avgRating.toFixed(1)
+              : null;
 
-            <Content>
-              <Name>{p.name}</Name>
+          return (
+            <Card
+              key={p.id}
+              role="listitem"
+              aria-label={`View ${p.name}`}
+              onClick={() => handleNavigate(p.id)}
+            >
+              <ImgWrap>
+                <Img
+                  src={p.imageUrl || "/placeholder.png"}
+                  alt={p.name}
+                  loading="lazy"
+                />
 
-              <Price>₹{p.price}</Price>
+                {p.discount && (
+                  <Badge>{p.discount}% OFF</Badge>
+                )}
+              </ImgWrap>
 
-              {p.avgRating && (
-                <Rating>
-                  ⭐ {p.avgRating.toFixed(1)} ({p.reviewCount || 0})
-                </Rating>
-              )}
+              <Content>
+                <Name>{p.name}</Name>
 
-              <AddBtn
-                onClick={(e) => {
-                  e.stopPropagation();
-                  addToCart(
-                    {
-                      id: p.id,
-                      name: p.name,
-                      price: p.price,
-                      imageUrl: p.imageUrl,
-                    },
-                    e
-                  );
-                }}
-              >
-                🛒 Add to Cart
-              </AddBtn>
-            </Content>
-          </Card>
-        ))}
+                <Price>₹{p.price}</Price>
+
+                {rating && (
+                  <Rating>
+                    ⭐ {rating} ({p.reviewCount || 0})
+                  </Rating>
+                )}
+
+                <AddBtn
+                  onClick={(e) => {
+                    e.stopPropagation();
+
+                    if (typeof addToCart === "function") {
+                      addToCart({
+                        id: p.id,
+                        name: p.name,
+                        price: p.price,
+                        imageUrl: p.imageUrl,
+                      });
+                    }
+                  }}
+                >
+                  🛒 Add to Cart
+                </AddBtn>
+              </Content>
+            </Card>
+          );
+        })}
       </Grid>
     </Section>
   );

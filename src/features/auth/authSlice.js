@@ -15,7 +15,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 
-import { auth, firestore } from "../../api/firebase";
+import { auth, db } from "../../api/firebase";
 import logger from "../../services/logger";
 import { loadCart, syncCart } from "../cart/cartSlice";
 
@@ -43,11 +43,17 @@ export const registerUser = createAsyncThunk(
         verified: false,
       };
 
-      await setDoc(doc(firestore, "users", uid), userDoc);
-
+      await setDoc(doc(db, "users", uid), userDoc);
       await sendEmailVerification(cred.user);
 
-      return { uid, ...userDoc };
+      return {
+        uid,
+        email,
+        role,
+        profile,
+        createdAt: new Date().toISOString(), // ✅ SAFE
+        verified: false,
+      };
     } catch (err) {
       return rejectWithValue(err.message || "Registration failed");
     }
@@ -55,7 +61,7 @@ export const registerUser = createAsyncThunk(
 );
 
 /* =====================================================
-   LOGIN USER + CART MERGE
+   LOGIN USER
 ===================================================== */
 
 export const loginUser = createAsyncThunk(
@@ -71,10 +77,9 @@ export const loginUser = createAsyncThunk(
       const fbUser = cred.user;
       const uid = fbUser.uid;
 
-      const ref = doc(firestore, "users", uid);
+      const ref = doc(db, "users", uid);
       let snap = await getDoc(ref);
 
-      // If user doc missing → create fallback
       if (!snap.exists()) {
         const fallbackDoc = {
           email,
@@ -89,6 +94,12 @@ export const loginUser = createAsyncThunk(
       }
 
       const userDoc = snap.data();
+
+      /* ---- CONVERT TIMESTAMP SAFE ---- */
+      const safeUserDoc = {
+        ...userDoc,
+        createdAt: userDoc.createdAt?.toDate?.().toISOString?.() || null,
+      };
 
       /* ---------------- CART MERGE ---------------- */
 
@@ -116,7 +127,7 @@ export const loginUser = createAsyncThunk(
       return {
         uid,
         email,
-        ...userDoc,
+        ...safeUserDoc,
         verified: fbUser.emailVerified,
       };
     } catch (err) {
@@ -171,7 +182,17 @@ const authSlice = createSlice({
 
   reducers: {
     setUser(state, action) {
-      state.user = action.payload;
+      const user = action.payload;
+
+      state.user = user
+        ? {
+            ...user,
+            createdAt: user.createdAt?.toDate?.()?.toISOString?.() ||
+              user.createdAt ||
+              null,
+          }
+        : null;
+
       state.initialized = true;
     },
     clearAuthError(state) {
@@ -180,7 +201,6 @@ const authSlice = createSlice({
   },
 
   extraReducers: (builder) => {
-    /* REGISTER */
     builder
       .addCase(registerUser.pending, (state) => {
         state.registerStatus = "loading";
@@ -194,7 +214,6 @@ const authSlice = createSlice({
         state.error = action.payload;
       });
 
-    /* LOGIN */
     builder
       .addCase(loginUser.pending, (state) => {
         state.loginStatus = "loading";
@@ -208,12 +227,10 @@ const authSlice = createSlice({
         state.error = action.payload;
       });
 
-    /* LOGOUT */
     builder.addCase(logoutUser.fulfilled, (state) => {
       state.user = null;
     });
 
-    /* RESET */
     builder
       .addCase(sendPasswordReset.pending, (state) => {
         state.resetStatus = "loading";

@@ -9,6 +9,9 @@ import {
   setMaxPrice,
   setSort,
   toggleCategory,
+  setSearch,
+  setMinRating,
+  setInStockOnly,
   selectFilters,
 } from "./productFilterSlice";
 
@@ -34,6 +37,12 @@ const Select = styled.select`
   border: 1px solid #ddd;
 `;
 
+const Input = styled.input`
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+`;
+
 const Label = styled.span`
   font-size: 14px;
   color: ${({ theme }) => theme.colors.lightText};
@@ -42,9 +51,12 @@ const Label = styled.span`
 const CategoryBtn = styled.button`
   padding: 6px 10px;
   border-radius: 20px;
-  border: 1px solid ${({ active }) => (active ? "#4f46e5" : "#ddd")};
-  background: ${({ active }) => (active ? "#4f46e5" : "#fff")};
-  color: ${({ active }) => (active ? "#fff" : "#333")};
+  border: 1px solid
+    ${({ $active }) => ($active ? "#4f46e5" : "#ddd")};
+  background: ${({ $active }) =>
+    $active ? "#4f46e5" : "#fff"};
+  color: ${({ $active }) =>
+    $active ? "#fff" : "#333"};
   cursor: pointer;
   font-size: 13px;
 `;
@@ -67,14 +79,18 @@ export default function FiltersBar() {
   const MAX_PRICE = 100000;
 
   const [values, setValues] = useState([
-    filters.minPrice || 0,
-    filters.maxPrice === Infinity ? MAX_PRICE : filters.maxPrice,
+    filters.minPrice,
+    filters.maxPrice === Infinity
+      ? MAX_PRICE
+      : filters.maxPrice,
   ]);
 
   useEffect(() => {
     setValues([
-      filters.minPrice || 0,
-      filters.maxPrice === Infinity ? MAX_PRICE : filters.maxPrice,
+      filters.minPrice,
+      filters.maxPrice === Infinity
+        ? MAX_PRICE
+        : filters.maxPrice,
     ]);
   }, [filters.minPrice, filters.maxPrice]);
 
@@ -89,15 +105,31 @@ export default function FiltersBar() {
 
   return (
     <Bar>
+      {/* SEARCH */}
+      <Label>Search</Label>
+      <Input
+        placeholder="Search products..."
+        value={filters.search}
+        onChange={(e) =>
+          dispatch(setSearch(e.target.value))
+        }
+      />
+
       {/* SORT */}
       <Label>Sort</Label>
       <Select
         value={filters.sort}
-        onChange={(e) => dispatch(setSort(e.target.value))}
+        onChange={(e) =>
+          dispatch(setSort(e.target.value))
+        }
       >
         <option value="newest">Newest</option>
-        <option value="price-asc">Price: Low → High</option>
-        <option value="price-desc">Price: High → Low</option>
+        <option value="price-asc">
+          Price: Low → High
+        </option>
+        <option value="price-desc">
+          Price: High → Low
+        </option>
         <option value="name">Name A → Z</option>
         <option value="rating">Rating</option>
       </Select>
@@ -107,12 +139,42 @@ export default function FiltersBar() {
       {categories.map((cat) => (
         <CategoryBtn
           key={cat}
-          active={filters.categories.includes(cat)}
-          onClick={() => dispatch(toggleCategory(cat))}
+          $active={filters.categories.includes(cat)}
+          onClick={() =>
+            dispatch(toggleCategory(cat))
+          }
         >
           {cat}
         </CategoryBtn>
       ))}
+
+      {/* RATING */}
+      <Label>Min Rating</Label>
+      <Select
+        value={filters.minRating}
+        onChange={(e) =>
+          dispatch(setMinRating(e.target.value))
+        }
+      >
+        <option value={0}>All</option>
+        <option value={3}>3★+</option>
+        <option value={4}>4★+</option>
+        <option value={4.5}>4.5★+</option>
+      </Select>
+
+      {/* IN STOCK */}
+      <Label>
+        <input
+          type="checkbox"
+          checked={filters.inStockOnly}
+          onChange={(e) =>
+            dispatch(
+              setInStockOnly(e.target.checked)
+            )
+          }
+        />{" "}
+        In Stock Only
+      </Label>
 
       {/* PRICE RANGE */}
       <Label>Price</Label>

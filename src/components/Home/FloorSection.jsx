@@ -1,5 +1,5 @@
 // src/components/Home/FloorSection.jsx
-import React from "react";
+import React, { useCallback } from "react";
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
 
@@ -27,16 +27,17 @@ const Grid = styled.div`
 `;
 
 /* ==============================
-   CARD
+   CARD (Now Accessible Button)
 ================================ */
-const Card = styled.div`
+const Card = styled.button`
   position: relative;
   padding: 28px 20px;
   border-radius: 20px;
+  border: none;
   background: linear-gradient(
     135deg,
-    ${({ gradient1 }) => gradient1},
-    ${({ gradient2 }) => gradient2}
+    ${({ $gradient1 }) => $gradient1},
+    ${({ $gradient2 }) => $gradient2}
   );
   color: white;
   font-weight: 600;
@@ -50,6 +51,11 @@ const Card = styled.div`
   &:hover {
     transform: translateY(-10px);
     box-shadow: 0 25px 60px rgba(0, 0, 0, 0.25);
+  }
+
+  &:focus-visible {
+    outline: 3px solid white;
+    outline-offset: 3px;
   }
 
   /* Glow effect */
@@ -128,20 +134,27 @@ const floors = [
 export default function FloorSection() {
   const navigate = useNavigate();
 
-  const handleClick = (floor) => {
-    navigate(`/search?q=floor:${floor}`);
-  };
+  const handleClick = useCallback(
+    (floor) => {
+      navigate(`/search?q=floor:${floor}`);
+    },
+    [navigate]
+  );
 
   return (
-    <Wrap>
-      <Title>Shop by Floor</Title>
+    <Wrap aria-labelledby="shop-by-floor">
+      <Title id="shop-by-floor">
+        Shop by Floor
+      </Title>
 
-      <Grid>
+      <Grid role="list">
         {floors.map((f) => (
           <Card
             key={f.id}
-            gradient1={f.gradient1}
-            gradient2={f.gradient2}
+            role="listitem"
+            aria-label={`Browse ${f.label}`}
+            $gradient1={f.gradient1}
+            $gradient2={f.gradient2}
             onClick={() => handleClick(f.q)}
           >
             <Icon>{f.icon}</Icon>

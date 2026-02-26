@@ -29,24 +29,31 @@ const Bar = styled.div`
   right: 0;
 
   backdrop-filter: blur(12px);
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.95);
   border-top: 1px solid rgba(0, 0, 0, 0.08);
 
   padding: 14px 22px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  z-index: 1000;
+  gap: 16px;
 
+  z-index: 1000;
   box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.08);
-  animation: ${slideUp} 0.35s ease-out;
+  animation: ${slideUp} 0.3s ease-out;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
 `;
 
 const Items = styled.div`
   display: flex;
-  gap: 18px;
+  gap: 14px;
   align-items: center;
   overflow-x: auto;
+  flex: 1;
 
   &::-webkit-scrollbar {
     display: none;
@@ -56,7 +63,7 @@ const Items = styled.div`
 const Item = styled.div`
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   background: #f7f9fc;
   padding: 6px 10px;
   border-radius: 8px;
@@ -68,12 +75,17 @@ const Thumb = styled.img`
   height: 36px;
   border-radius: 6px;
   object-fit: cover;
+  flex-shrink: 0;
 `;
 
 const Name = styled.span`
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 500;
   color: #333;
+  max-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 `;
 
 const RemoveBtn = styled.button`
@@ -93,6 +105,10 @@ const Actions = styled.div`
   display: flex;
   gap: 12px;
   align-items: center;
+
+  @media (max-width: 768px) {
+    justify-content: space-between;
+  }
 `;
 
 const CompareBtn = styled(Link)`
@@ -138,9 +154,10 @@ export default function CompareBar() {
       <Items>
         {items.map((item) => (
           <Item key={item.id}>
-            {item.imageUrl && (
-              <Thumb src={item.imageUrl} alt={item.name} />
-            )}
+            <Thumb
+              src={item.imageUrl || "/placeholder.png"}
+              alt={item.name}
+            />
             <Name>{item.name}</Name>
             <RemoveBtn
               onClick={() => dispatch(removeFromCompare(item.id))}

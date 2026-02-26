@@ -10,7 +10,8 @@ import {
   removeProduct,
   setEditingProduct,
   selectAllProducts,
-  selectProductStatus,
+  selectProductFetchStatus,
+  selectProductDeleteStatus,
 } from "./productSlice";
 
 import { addToCompare } from "../comparison/comparisonSlice";
@@ -87,6 +88,7 @@ const Button = styled.button`
   cursor: pointer;
   color: white;
   font-size: 13px;
+
   background: ${({ $danger, $compare, $wish }) =>
     $danger
       ? "#d9534f"
@@ -99,6 +101,11 @@ const Button = styled.button`
   &:hover {
     opacity: 0.9;
   }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 `;
 
 /* ============================
@@ -110,7 +117,9 @@ export default function ProductList({ shopId }) {
   const navigate = useNavigate();
 
   const products = useSelector(selectAllProducts);
-  const status = useSelector(selectProductStatus);
+  const fetchStatus = useSelector(selectProductFetchStatus);
+  const deleteStatus = useSelector(selectProductDeleteStatus);
+
   const wishlist = useSelector((s) => s.wishlist?.items || []);
   const offersByShop = useSelector((s) => s.offers?.offersByShop || {});
   const cartItems = useSelector((s) => s.cart?.items || []);
@@ -128,6 +137,7 @@ export default function ProductList({ shopId }) {
 
     if (user) {
       const exists = cartItems.find((x) => x.id === product.id);
+
       const updatedCart = exists
         ? cartItems.map((x) =>
             x.id === product.id
@@ -149,8 +159,11 @@ export default function ProductList({ shopId }) {
      UI States
   ============================ */
 
-  if (status === "loading") return <p>Loading products...</p>;
-  if (!products.length) return <p>No products available.</p>;
+  if (fetchStatus === "loading")
+    return <p>Loading products...</p>;
+
+  if (!products.length)
+    return <p>No products available.</p>;
 
   return (
     <>
@@ -221,8 +234,10 @@ export default function ProductList({ shopId }) {
 
                     <Button
                       $danger
+                      disabled={deleteStatus === "loading"}
                       onClick={(e) => {
                         e.stopPropagation();
+
                         if (
                           window.confirm(
                             "Delete this product?"
@@ -232,7 +247,9 @@ export default function ProductList({ shopId }) {
                         }
                       }}
                     >
-                      Delete
+                      {deleteStatus === "loading"
+                        ? "Deleting..."
+                        : "Delete"}
                     </Button>
                   </>
                 )}

@@ -30,6 +30,7 @@ const ClearBtn = styled.button`
   margin-bottom: 25px;
   cursor: pointer;
   font-weight: 600;
+  transition: 0.2s ease;
 
   &:hover {
     transform: translateY(-2px);
@@ -54,7 +55,8 @@ const HeaderCell = styled.div`
   border-radius: 10px;
   position: sticky;
   left: 0;
-  z-index: 2;
+  z-index: 3;
+  min-width: 220px;
 `;
 
 const Cell = styled.div`
@@ -87,6 +89,8 @@ const RemoveBtn = styled.button`
   padding: 6px 12px;
   border-radius: 6px;
   cursor: pointer;
+  margin-top: 8px;
+  transition: 0.2s ease;
 
   &:hover {
     opacity: 0.85;
@@ -119,21 +123,25 @@ export default function ComparePage() {
      COMPUTE LOWEST PRICE
   ============================== */
   const lowestPrice = useMemo(() => {
-    if (items.length === 0) return 0;
-    return Math.min(...items.map((p) => p.price || 0));
+    if (!items.length) return null;
+    return Math.min(...items.map((p) => Number(p.price) || 0));
   }, [items]);
 
   /* =============================
-     GET UNIQUE FEATURES
+     GET UNIQUE FEATURES (SAFE)
   ============================== */
   const allFeatures = useMemo(() => {
     return Array.from(
-      new Set(items.flatMap((p) => p.features || []))
+      new Set(
+        items.flatMap((p) =>
+          Array.isArray(p.features) ? p.features : []
+        )
+      )
     );
   }, [items]);
 
   /* =============================
-     EARLY RETURN (AFTER HOOKS)
+     EARLY RETURN
   ============================== */
   if (items.length < 2) {
     return (
@@ -158,7 +166,10 @@ export default function ComparePage() {
           {items.map((p) => (
             <Cell key={p.id}>
               <ProductCard>
-                <Image src={p.imageUrl} alt={p.name} />
+                <Image
+                  src={p.imageUrl || "/placeholder.png"}
+                  alt={p.name}
+                />
                 <strong>{p.name}</strong>
                 <RemoveBtn
                   onClick={() => dispatch(removeFromCompare(p.id))}
@@ -172,7 +183,7 @@ export default function ComparePage() {
           {/* PRICE ROW */}
           <HeaderCell>Price</HeaderCell>
           {items.map((p) => (
-            <Cell key={p.id}>
+            <Cell key={`price-${p.id}`}>
               {p.price === lowestPrice ? (
                 <Highlight>₹{p.price} 🔥 Best</Highlight>
               ) : (
@@ -184,7 +195,9 @@ export default function ComparePage() {
           {/* CATEGORY ROW */}
           <HeaderCell>Category</HeaderCell>
           {items.map((p) => (
-            <Cell key={p.id}>{p.category || "-"}</Cell>
+            <Cell key={`cat-${p.id}`}>
+              {p.category || "-"}
+            </Cell>
           ))}
 
           {/* FEATURES ROWS */}
@@ -192,7 +205,7 @@ export default function ComparePage() {
             <React.Fragment key={feature}>
               <HeaderCell>{feature}</HeaderCell>
               {items.map((p) => (
-                <Cell key={p.id + feature}>
+                <Cell key={`${p.id}-${feature}`}>
                   {p.features?.includes(feature) ? "✔️" : "—"}
                 </Cell>
               ))}

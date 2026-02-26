@@ -10,8 +10,7 @@ import {
 import { useDispatch } from "react-redux";
 
 import { setUser } from "../features/auth/authSlice";
-import { auth, firestore } from "../api/firebase";
-
+import { auth, db } from "../api/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 
@@ -61,46 +60,51 @@ export default function AppRouter() {
 
   /* ================= AUTH LISTENER ================= */
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (fbUser) => {
-      if (fbUser) {
-        const uid = fbUser.uid;
+    const unsubscribe = onAuthStateChanged(
+      auth,
+      async (fbUser) => {
+        if (fbUser) {
+          const uid = fbUser.uid;
 
-        try {
-          // ✅ Modular Firestore v9
-          const ref = doc(firestore, "users", uid);
-          const snap = await getDoc(ref);
+          try {
+            const userRef = doc(db, "users", uid);
+            const snap = await getDoc(userRef);
 
-          const userDoc = snap.exists() ? snap.data() : {};
+            const userDoc = snap.exists()
+              ? snap.data()
+              : {};
 
-          dispatch(
-            setUser({
-              uid,
-              email: fbUser.email,
-              ...userDoc,
-              verified: fbUser.emailVerified,
-            })
-          );
-        } catch (err) {
-          console.error("Failed to load user doc:", err);
+            dispatch(
+              setUser({
+                uid,
+                email: fbUser.email,
+                ...userDoc,
+                verified: fbUser.emailVerified,
+              })
+            );
+          } catch (err) {
+            console.error("Failed to load user doc:", err);
+            dispatch(setUser(null));
+          }
+        } else {
           dispatch(setUser(null));
         }
-      } else {
-        dispatch(setUser(null));
+
+        setAuthReady(true);
       }
+    );
 
-      setAuthReady(true);
-    });
-
-    return () => unsub();
+    return () => unsubscribe();
   }, [dispatch]);
 
-  if (!authReady) return null; // prevent flicker
+  if (!authReady) return null;
 
   return (
     <BrowserRouter>
       <Navbar />
 
       <Routes>
+
         {/* ================= PUBLIC ================= */}
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
@@ -113,13 +117,7 @@ export default function AppRouter() {
         <Route path="/cart" element={<CartPage />} />
 
         {/* ================= CUSTOMER ================= */}
-        <Route
-          element={
-            <ProtectedRoute
-              roles={["customer", "merchant", "admin"]}
-            />
-          }
-        >
+        <Route element={<ProtectedRoute roles={["customer", "merchant", "admin"]} />}>
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/summary" element={<OrderSummary />} />
           <Route path="/invoice" element={<OrderInvoice />} />
@@ -128,9 +126,7 @@ export default function AppRouter() {
         </Route>
 
         {/* ================= MERCHANT ================= */}
-        <Route
-          element={<ProtectedRoute roles={["merchant", "admin"]} />}
-        >
+        <Route element={<ProtectedRoute roles={["merchant", "admin"]} />}>
           <Route path="/dashboard" element={<DashboardLayout />}>
             <Route index element={<MerchantOverview />} />
             <Route path="shops" element={<ManageShops />} />
@@ -141,9 +137,7 @@ export default function AppRouter() {
         </Route>
 
         {/* ================= ADMIN ================= */}
-        <Route
-          element={<ProtectedRoute roles={["admin"]} />}
-        >
+        <Route element={<ProtectedRoute roles={["admin"]} />}>
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/orders" element={<AdminOrders />} />
           <Route path="/admin/orders/:id" element={<AdminOrderDetails />} />
@@ -151,6 +145,7 @@ export default function AppRouter() {
 
         {/* ================= 404 ================= */}
         <Route path="*" element={<Navigate to="/" replace />} />
+
       </Routes>
     </BrowserRouter>
   );

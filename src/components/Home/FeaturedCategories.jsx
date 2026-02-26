@@ -1,5 +1,5 @@
 // src/components/Home/FeaturedCategories.jsx
-import React from "react";
+import React, { useCallback } from "react";
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
 
@@ -27,15 +27,17 @@ const Grid = styled.div`
 `;
 
 /* ==============================
-   CARD
+   CARD (Now Accessible Button)
 ================================ */
-const Card = styled.div`
+const Card = styled.button`
   position: relative;
   border-radius: 18px;
   overflow: hidden;
   cursor: pointer;
   height: 170px;
   background: #eee;
+  border: none;
+  padding: 0;
   box-shadow: 0 10px 30px rgba(30, 40, 100, 0.08);
   transition: all 0.3s ease;
 
@@ -47,6 +49,11 @@ const Card = styled.div`
   &:hover img {
     transform: scale(1.08);
   }
+
+  &:focus-visible {
+    outline: 3px solid ${({ theme }) => theme.colors.primary};
+    outline-offset: 3px;
+  }
 `;
 
 /* ==============================
@@ -57,6 +64,7 @@ const Img = styled.img`
   height: 100%;
   object-fit: cover;
   transition: transform 0.4s ease;
+  display: block;
 `;
 
 /* ==============================
@@ -90,12 +98,12 @@ const Label = styled.div`
    DATA
 ================================ */
 const items = [
-  { id: "electronics", name: "Electronics", img: "/cats/electronics.jpg" },
-  { id: "fashion", name: "Fashion", img: "/cats/clothing.jpg" },
-  { id: "food", name: "Food", img: "/cats/food.jpg" },
-  { id: "shoes", name: "Shoes", img: "/cats/shoes.jpg" },
-  { id: "home", name: "Home Items", img: "/cats/home.jpg" },
-  { id: "jewellery", name: "Jewellery", img: "/cats/jewellery.jpg" },
+  { id: "electronics", name: "Electronics", img: "/images/electronics.jpg" },
+  { id: "fashion", name: "Fashion", img: "/images/shop-clothing.avif" },
+  { id: "food", name: "Food", img: "/images/food.jpg" },
+  { id: "shoes", name: "Shoes", img: "/images/shoes.jpg" },
+  { id: "home", name: "Home Items", img: "/images/home.jpg" },
+  { id: "jewellery", name: "Jewellery", img: "/images/jewellery.jpg" },
 ];
 
 /* ==============================
@@ -104,18 +112,30 @@ const items = [
 export default function FeaturedCategories() {
   const navigate = useNavigate();
 
-  const handleClick = (name) => {
+  const handleClick = useCallback((name) => {
     navigate(`/search?q=${encodeURIComponent(name)}`);
-  };
+  }, [navigate]);
 
   return (
-    <Wrap>
-      <Title>Featured Categories</Title>
+    <Wrap aria-labelledby="featured-categories">
+      <Title id="featured-categories">
+        Featured Categories
+      </Title>
 
-      <Grid>
+      <Grid role="list">
         {items.map((c) => (
-          <Card key={c.id} onClick={() => handleClick(c.name)}>
-            <Img src={c.img} alt={c.name} />
+          <Card
+            key={c.id}
+            role="listitem"
+            aria-label={`Browse ${c.name}`}
+            onClick={() => handleClick(c.name)}
+          >
+            <Img
+              src={c.img}
+              alt={c.name}
+              loading="lazy"
+            />
+
             <Overlay>
               <Label>{c.name}</Label>
             </Overlay>

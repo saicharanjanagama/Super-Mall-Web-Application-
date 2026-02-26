@@ -2,7 +2,7 @@
 
 import React from "react";
 import styled from "styled-components";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 /* ===================== STYLES ===================== */
 
@@ -78,19 +78,22 @@ const SecondaryLink = styled(Link)`
 
 export default function OrderSuccess() {
   const { state } = useLocation();
+  const navigate = useNavigate();
+
   const order = state?.order;
+  const orderId = order?.id;
 
   return (
     <Page>
-      <Card>
+      <Card role="alert" aria-live="polite">
         <Icon>✓</Icon>
 
         <Title>Order Placed Successfully!</Title>
 
         <Text>
-          {order
-            ? `Your order #${order.id} has been placed successfully.`
-            : "Your items will be delivered soon."}
+          {orderId
+            ? `Your order #${orderId} has been placed successfully.`
+            : "Your order has been placed successfully."}
         </Text>
 
         <Button to="/orders">

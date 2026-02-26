@@ -1,18 +1,29 @@
-import { firestore } from "./firebase";
+// src/api/adminApi.js (or wherever this file is)
+
+import { db } from "./firebase";
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+  limit,
+  orderBy,
+  doc,
+  updateDoc,
+  deleteDoc,
+} from "firebase/firestore";
 
 /* =========================================================
-   FETCH ALL USERS (with optional pagination)
+   FETCH ALL USERS
 ========================================================= */
 export const fetchAllUsers = async (limitCount = 100) => {
   try {
-    const snap = await firestore
-      .collection("users")
-      .limit(limitCount)
-      .get();
+    const q = query(collection(db, "users"), limit(limitCount));
+    const snap = await getDocs(q);
 
-    return snap.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
+    return snap.docs.map((docItem) => ({
+      id: docItem.id,
+      ...docItem.data(),
     }));
   } catch (error) {
     console.error("fetchAllUsers error:", error);
@@ -20,23 +31,22 @@ export const fetchAllUsers = async (limitCount = 100) => {
   }
 };
 
-
 /* =========================================================
-   FETCH ALL SHOPS (with filtering support)
+   FETCH ALL SHOPS
 ========================================================= */
 export const fetchAllShops = async ({ status } = {}) => {
   try {
-    let query = firestore.collection("shops");
+    let q = collection(db, "shops");
 
     if (status) {
-      query = query.where("status", "==", status);
+      q = query(collection(db, "shops"), where("status", "==", status));
     }
 
-    const snap = await query.get();
+    const snap = await getDocs(q);
 
-    return snap.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
+    return snap.docs.map((docItem) => ({
+      id: docItem.id,
+      ...docItem.data(),
     }));
   } catch (error) {
     console.error("fetchAllShops error:", error);
@@ -44,17 +54,18 @@ export const fetchAllShops = async ({ status } = {}) => {
   }
 };
 
-
 /* =========================================================
-   UPDATE SHOP APPROVAL (Approve / Reject / Suspend)
+   UPDATE SHOP APPROVAL
 ========================================================= */
 export const updateShopApproval = async (id, status) => {
   try {
     if (!id) throw new Error("Shop ID is required");
 
-    await firestore.collection("shops").doc(id).update({
+    const shopRef = doc(db, "shops", id);
+
+    await updateDoc(shopRef, {
       status,
-      reviewedAt: new Date(),
+      reviewedAt: new Date().toISOString(), // avoid Timestamp issues
     });
 
     return { id, status };
@@ -64,21 +75,22 @@ export const updateShopApproval = async (id, status) => {
   }
 };
 
-
 /* =========================================================
-   FETCH ACTIVITY LOGS (latest first)
+   FETCH ACTIVITY LOGS
 ========================================================= */
 export const fetchActivityLogs = async (limitCount = 50) => {
   try {
-    const snap = await firestore
-      .collection("logs")
-      .orderBy("timestamp", "desc")
-      .limit(limitCount)
-      .get();
+    const q = query(
+      collection(db, "logs"),
+      orderBy("timestamp", "desc"),
+      limit(limitCount)
+    );
 
-    return snap.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
+    const snap = await getDocs(q);
+
+    return snap.docs.map((docItem) => ({
+      id: docItem.id,
+      ...docItem.data(),
     }));
   } catch (error) {
     console.error("fetchActivityLogs error:", error);
@@ -86,13 +98,12 @@ export const fetchActivityLogs = async (limitCount = 50) => {
   }
 };
 
-
 /* =========================================================
-   DELETE USER (ADMIN ONLY)
+   DELETE USER
 ========================================================= */
 export const deleteUser = async (userId) => {
   try {
-    await firestore.collection("users").doc(userId).delete();
+    await deleteDoc(doc(db, "users", userId));
     return userId;
   } catch (error) {
     console.error("deleteUser error:", error);
@@ -100,13 +111,12 @@ export const deleteUser = async (userId) => {
   }
 };
 
-
 /* =========================================================
-   DELETE SHOP (ADMIN ONLY)
+   DELETE SHOP
 ========================================================= */
 export const deleteShop = async (shopId) => {
   try {
-    await firestore.collection("shops").doc(shopId).delete();
+    await deleteDoc(doc(db, "shops", shopId));
     return shopId;
   } catch (error) {
     console.error("deleteShop error:", error);
@@ -114,16 +124,15 @@ export const deleteShop = async (shopId) => {
   }
 };
 
-
 /* =========================================================
-   ADMIN DASHBOARD STATS (Aggregated)
+   ADMIN DASHBOARD STATS
 ========================================================= */
 export const fetchAdminStats = async () => {
   try {
     const [usersSnap, shopsSnap, ordersSnap] = await Promise.all([
-      firestore.collection("users").get(),
-      firestore.collection("shops").get(),
-      firestore.collection("orders").get(),
+      getDocs(collection(db, "users")),
+      getDocs(collection(db, "shops")),
+      getDocs(collection(db, "orders")),
     ]);
 
     return {

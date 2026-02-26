@@ -1,4 +1,5 @@
 // src/features/admin/adminSlice.js
+
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import {
   fetchAllUsers,
@@ -90,58 +91,71 @@ const adminSlice = createSlice({
     clearAdminError: (state) => {
       state.error = null;
     },
+    resetAdminState: () => ({
+      users: [],
+      shops: [],
+      logs: [],
+      usersStatus: "idle",
+      shopsStatus: "idle",
+      logsStatus: "idle",
+      error: null,
+    }),
   },
 
   extraReducers: (builder) => {
-    /* ---------------- USERS ---------------- */
     builder
+
+      /* ================= USERS ================= */
       .addCase(getUsers.pending, (state) => {
         state.usersStatus = "loading";
+        state.error = null;
       })
       .addCase(getUsers.fulfilled, (state, action) => {
         state.usersStatus = "succeeded";
-        state.users = action.payload || [];
+        state.users = action.payload ?? [];
       })
       .addCase(getUsers.rejected, (state, action) => {
         state.usersStatus = "failed";
         state.error = action.payload;
-      });
+      })
 
-    /* ---------------- SHOPS ---------------- */
-    builder
+      /* ================= SHOPS ================= */
       .addCase(getShopsAdmin.pending, (state) => {
         state.shopsStatus = "loading";
+        state.error = null;
       })
       .addCase(getShopsAdmin.fulfilled, (state, action) => {
         state.shopsStatus = "succeeded";
-        state.shops = action.payload || [];
+        state.shops = action.payload ?? [];
       })
       .addCase(getShopsAdmin.rejected, (state, action) => {
         state.shopsStatus = "failed";
         state.error = action.payload;
-      });
+      })
 
-    /* ---------------- UPDATE SHOP STATUS ---------------- */
-    builder.addCase(setShopStatus.fulfilled, (state, action) => {
-      const { id, status } = action.payload;
+      /* ================= UPDATE SHOP STATUS ================= */
+      .addCase(setShopStatus.pending, (state) => {
+        state.error = null;
+      })
+      .addCase(setShopStatus.fulfilled, (state, action) => {
+        const { id, status } = action.payload;
 
-      state.shops = state.shops.map((shop) =>
-        shop.id === id ? { ...shop, status } : shop
-      );
-    });
+        state.shops = state.shops.map((shop) =>
+          shop.id === id ? { ...shop, status } : shop
+        );
+      })
+      .addCase(setShopStatus.rejected, (state, action) => {
+        state.error = action.payload;
+      })
 
-    builder.addCase(setShopStatus.rejected, (state, action) => {
-      state.error = action.payload;
-    });
-
-    /* ---------------- LOGS ---------------- */
-    builder
+      /* ================= LOGS ================= */
       .addCase(getLogs.pending, (state) => {
         state.logsStatus = "loading";
+        state.error = null;
       })
       .addCase(getLogs.fulfilled, (state, action) => {
         state.logsStatus = "succeeded";
-        state.logs = action.payload || [];
+        state.logs = action.payload ?? [];
       })
       .addCase(getLogs.rejected, (state, action) => {
         state.logsStatus = "failed";
@@ -150,6 +164,6 @@ const adminSlice = createSlice({
   },
 });
 
-export const { clearAdminError } = adminSlice.actions;
+export const { clearAdminError, resetAdminState } = adminSlice.actions;
 
 export default adminSlice.reducer;

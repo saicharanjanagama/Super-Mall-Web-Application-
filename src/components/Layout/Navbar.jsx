@@ -1,5 +1,5 @@
 // src/components/Layout/Navbar.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import styled from "styled-components";
 import { useSelector, useDispatch } from "react-redux";
 import { logoutUser } from "../../features/auth/authSlice";
@@ -40,7 +40,6 @@ const NavLinkItem = styled(Link)`
   text-decoration: none;
   color: ${({ theme }) => theme.colors.text};
   font-weight: 500;
-  position: relative;
   transition: 0.2s ease;
 
   &:hover {
@@ -67,8 +66,6 @@ const SearchInput = styled.input`
   padding: 10px 14px;
   border-radius: 12px;
   border: 1px solid #ddd;
-  outline: none;
-  transition: 0.2s ease;
 
   &:focus {
     border-color: ${({ theme }) => theme.colors.primary};
@@ -76,7 +73,7 @@ const SearchInput = styled.input`
   }
 `;
 
-const Suggestions = styled.div`
+const Suggestions = styled.ul`
   position: absolute;
   top: 45px;
   width: 100%;
@@ -85,15 +82,22 @@ const Suggestions = styled.div`
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.15);
   overflow: hidden;
   z-index: 200;
+  list-style: none;
+  padding: 0;
+  margin: 0;
 `;
 
-const SuggestionItem = styled.div`
+const SuggestionItem = styled.button`
+  width: 100%;
   padding: 10px 14px;
+  border: none;
+  background: ${({ $active }) =>
+    $active ? "#f5f5f5" : "white"};
   cursor: pointer;
   display: flex;
   gap: 12px;
   align-items: center;
-  transition: 0.2s ease;
+  text-align: left;
 
   &:hover {
     background: #f5f5f5;
@@ -112,11 +116,16 @@ const LogoutBtn = styled.button`
   border: none;
   background: #f3f4f6;
   cursor: pointer;
-  transition: 0.2s ease;
 
   &:hover {
     background: #e5e7eb;
   }
+`;
+
+const AdminLink = styled(Link)`
+  font-weight: 700;
+  color: #c62828;
+  text-decoration: none;
 `;
 
 /* ==============================
@@ -125,7 +134,6 @@ const LogoutBtn = styled.button`
 
 export default function Navbar() {
   const user = useSelector((s) => s.auth.user);
-
   const compareCount = useSelector((s) => s.comparison.items.length);
   const wishlistCount = useSelector((s) => s.wishlist.items.length);
   const cartCount = useSelector((s) => s.cart?.items?.length || 0);
@@ -135,6 +143,9 @@ export default function Navbar() {
 
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
+  const [activeIndex, setActiveIndex] = useState(-1);
+
+  const containerRef = useRef();
 
   /* SEARCH SUGGESTIONS */
   useEffect(() => {
@@ -147,13 +158,22 @@ export default function Navbar() {
       try {
         const res = await dispatch(globalSearch(query)).unwrap();
         setSuggestions(res.slice(0, 6));
-      } catch (err) {
-        console.error("Search error:", err);
-      }
+      } catch {}
     }, 300);
 
     return () => clearTimeout(timer);
   }, [query, dispatch]);
+
+  /* CLOSE ON OUTSIDE CLICK */
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (!containerRef.current?.contains(e.target)) {
+        setSuggestions([]);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
 
   const onSearchSubmit = (e) => {
     e.preventDefault();
@@ -162,7 +182,26 @@ export default function Navbar() {
     setSuggestions([]);
   };
 
-  const onLogout = async () => dispatch(logoutUser());
+  const handleKeyDown = (e) => {
+    if (!suggestions.length) return;
+
+    if (e.key === "ArrowDown") {
+      setActiveIndex((prev) =>
+        prev < suggestions.length - 1 ? prev + 1 : 0
+      );
+    } else if (e.key === "ArrowUp") {
+      setActiveIndex((prev) =>
+        prev > 0 ? prev - 1 : suggestions.length - 1
+      );
+    } else if (e.key === "Enter" && activeIndex >= 0) {
+      navigate(suggestions[activeIndex].link);
+      setSuggestions([]);
+    } else if (e.key === "Escape") {
+      setSuggestions([]);
+    }
+  };
+
+  const onLogout = () => dispatch(logoutUser());
 
   return (
     <Nav>
@@ -182,46 +221,56 @@ export default function Navbar() {
         </NavLinkItem>
 
         {user && <NavLinkItem to="/orders">My Orders</NavLinkItem>}
-        {user && <NavLinkItem to="/dashboard">Dashboard</NavLinkItem>}
+        {user && (user.role === "merchant" || user.role === "admin") && (
+          <NavLinkItem to="/dashboard">Dashboard</NavLinkItem>
+        )}
       </Left>
 
       {/* SEARCH */}
-      <SearchWrap>
+      <SearchWrap ref={containerRef}>
         <form onSubmit={onSearchSubmit}>
           <SearchInput
             type="text"
+            role="combobox"
+            aria-expanded={suggestions.length > 0}
+            aria-controls="search-suggestions"
             placeholder="Search products, shops, offers..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
           />
         </form>
 
         {suggestions.length > 0 && (
-          <Suggestions>
-            {suggestions.map((item) => (
-              <SuggestionItem
-                key={item.id}
-                onClick={() => {
-                  navigate(item.link);
-                  setSuggestions([]);
-                }}
-              >
-                {item.image && (
-                  <img
-                    src={item.image}
-                    alt=""
-                    width="40"
-                    height="40"
-                    style={{ borderRadius: 8, objectFit: "cover" }}
-                  />
-                )}
-                <div>
-                  <strong>{item.title}</strong>
-                  <div style={{ fontSize: 12, opacity: 0.6 }}>
-                    {item.type}
+          <Suggestions id="search-suggestions" role="listbox">
+            {suggestions.map((item, index) => (
+              <li key={item.id}>
+                <SuggestionItem
+                  $active={index === activeIndex}
+                  role="option"
+                  aria-selected={index === activeIndex}
+                  onClick={() => {
+                    navigate(item.link);
+                    setSuggestions([]);
+                  }}
+                >
+                  {item.image && (
+                    <img
+                      src={item.image}
+                      alt=""
+                      width="40"
+                      height="40"
+                      style={{ borderRadius: 8, objectFit: "cover" }}
+                    />
+                  )}
+                  <div>
+                    <strong>{item.title}</strong>
+                    <div style={{ fontSize: 12, opacity: 0.6 }}>
+                      {item.type}
+                    </div>
                   </div>
-                </div>
-              </SuggestionItem>
+                </SuggestionItem>
+              </li>
             ))}
           </Suggestions>
         )}
@@ -237,9 +286,7 @@ export default function Navbar() {
             <LogoutBtn onClick={onLogout}>Logout</LogoutBtn>
 
             {user.role === "admin" && (
-              <NavLinkItem to="/admin" style={{ fontWeight: 700, color: "#c62828" }}>
-                Admin
-              </NavLinkItem>
+              <AdminLink to="/admin">Admin</AdminLink>
             )}
           </>
         ) : (

@@ -132,7 +132,7 @@ export default function ShopList() {
   const dispatch = useDispatch();
 
   const shops = useSelector(selectFilteredShops);
-  const status = useSelector(selectShopStatus);
+  const { fetch } = useSelector(selectShopStatus);
   const error = useSelector(selectShopError);
   const filters = useSelector((s) => s.shops.filters);
   const user = useSelector((s) => s.auth.user);
@@ -170,19 +170,11 @@ export default function ShopList() {
           }
         >
           <option value="">All Categories</option>
-          <option value="Clothing">
-            Clothing
-          </option>
-          <option value="Electronics">
-            Electronics
-          </option>
+          <option value="Clothing">Clothing</option>
+          <option value="Electronics">Electronics</option>
           <option value="Food">Food</option>
-          <option value="Jewellery">
-            Jewellery
-          </option>
-          <option value="Sports">
-            Sports
-          </option>
+          <option value="Jewellery">Jewellery</option>
+          <option value="Sports">Sports</option>
         </select>
 
         <select
@@ -195,41 +187,28 @@ export default function ShopList() {
             )
           }
         >
-          <option value="">
-            All Floors
-          </option>
-          <option value="ground">
-            Ground Floor
-          </option>
-          <option value="1">
-            1st Floor
-          </option>
-          <option value="2">
-            2nd Floor
-          </option>
-          <option value="3">
-            3rd Floor
-          </option>
+          <option value="">All Floors</option>
+          <option value="ground">Ground Floor</option>
+          <option value="1">1st Floor</option>
+          <option value="2">2nd Floor</option>
+          <option value="3">3rd Floor</option>
         </select>
       </Filters>
 
       {/* ---------------- STATUS ---------------- */}
-      {status === "loading" && (
-        <p>Loading shops...</p>
-      )}
+      {fetch === "loading" && <p>Loading shops...</p>}
 
-      {status === "failed" && (
+      {fetch === "failed" && (
         <p style={{ color: "red" }}>
           {error || "Something went wrong"}
         </p>
       )}
 
-      {status === "idle" &&
-        shops.length === 0 && (
-          <p style={{ opacity: 0.7 }}>
-            No shops match your filters.
-          </p>
-        )}
+      {fetch === "idle" && shops.length === 0 && (
+        <p style={{ opacity: 0.7 }}>
+          No shops match your filters.
+        </p>
+      )}
 
       {/* ---------------- SHOP CARDS ---------------- */}
       <Grid>
@@ -244,29 +223,19 @@ export default function ShopList() {
               )}
             </ShopName>
 
+            <Info>Category: {shop.category}</Info>
             <Info>
-              Category: {shop.category}
+              Floor: {getFloorLabel(shop.floor)}
             </Info>
-
-            <Info>
-              Floor:{" "}
-              {getFloorLabel(shop.floor)}
-            </Info>
-
-            <Info>
-              {shop.description}
-            </Info>
+            <Info>{shop.description}</Info>
 
             <div style={{ marginTop: 12 }}>
-              {/* Owner or Admin Only */}
               {(user?.uid === shop.owner ||
                 user?.role === "admin") && (
                 <>
                   <Button
                     onClick={() =>
-                      dispatch(
-                        setEditingShop(shop)
-                      )
+                      dispatch(setEditingShop(shop))
                     }
                   >
                     Edit
@@ -280,9 +249,7 @@ export default function ShopList() {
                           "Delete this shop?"
                         )
                       ) {
-                        dispatch(
-                          removeShop(shop.id)
-                        );
+                        dispatch(removeShop(shop.id));
                       }
                     }}
                   >

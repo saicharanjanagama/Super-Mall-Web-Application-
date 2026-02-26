@@ -1,6 +1,6 @@
 // src/views/Dashboard.jsx
 
-import React from "react";
+import React, { useMemo } from "react";
 import styled from "styled-components";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -63,12 +63,16 @@ const ActionButton = styled.button`
   &:hover {
     opacity: 0.9;
   }
+
+  &:focus-visible {
+    outline: 3px solid ${({ theme }) => theme.colors.primary};
+  }
 `;
 
 const SectionDivider = styled.hr`
   margin: 40px 0;
   border: none;
-  border-top: 1px solid ${({ theme }) => theme.colors.muted};
+  border-top: 1px solid ${({ theme }) => theme.colors.border || "#eee"};
 `;
 
 /* ===================== COMPONENT ===================== */
@@ -77,86 +81,146 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   const user = useSelector((s) => s.auth.user);
-  const { shops = [] } = useSelector((s) => s.shops || {});
-  const { products = [] } = useSelector((s) => s.products || {});
-  const { merchant: orders = [] } =
-    useSelector((s) => s.orders || { merchant: [] });
+  const shops = useSelector((s) => s.shops?.shops || []);
+  const products = useSelector((s) => s.products?.products || []);
+  const merchantOrders = useSelector(
+    (s) => s.orders?.merchantOrders || []
+  );
 
-  const revenue = orders
-    .filter((o) => o.status === "Delivered")
-    .reduce((sum, o) => sum + (o.total || 0), 0);
+  const role = user?.role;
+
+  /* ===== SAFE REVENUE CALC ===== */
+  const revenue = useMemo(() => {
+    return merchantOrders
+      .filter((o) => o.status === "Delivered")
+      .reduce(
+        (sum, o) => sum + (Number(o.total) || 0),
+        0
+      );
+  }, [merchantOrders]);
+
+  if (!user) return null;
 
   return (
     <Page>
       {/* ===== HEADER ===== */}
       <Header>
         <Title>
-          Welcome back, {user?.profile?.name || "Merchant"} 👋
+          Welcome back, {user?.profile?.name || user.email} 👋
         </Title>
         <Subtitle>
-          Manage your shops and grow your business.
+          {role === "admin"
+            ? "Manage platform data and monitor system performance."
+            : "Manage your shops and grow your business."}
         </Subtitle>
       </Header>
 
-      {/* ===== STATS ===== */}
-      <StatsGrid>
-        <Card>
-          <p>Total Shops</p>
-          <StatValue>{shops.length}</StatValue>
-        </Card>
+      {/* ===== STATS (Merchant Only) ===== */}
+      {role === "merchant" && (
+        <>
+          <StatsGrid>
+            <Card>
+              <p>Total Shops</p>
+              <StatValue>{shops.length}</StatValue>
+            </Card>
 
-        <Card>
-          <p>Total Products</p>
-          <StatValue>{products.length}</StatValue>
-        </Card>
+            <Card>
+              <p>Total Products</p>
+              <StatValue>{products.length}</StatValue>
+            </Card>
 
-        <Card>
-          <p>Total Orders</p>
-          <StatValue>{orders.length}</StatValue>
-        </Card>
+            <Card>
+              <p>Total Orders</p>
+              <StatValue>{merchantOrders.length}</StatValue>
+            </Card>
 
-        <Card>
-          <p>Total Revenue</p>
-          <StatValue>
-            ₹{revenue.toLocaleString("en-IN")}
-          </StatValue>
-        </Card>
-      </StatsGrid>
+            <Card>
+              <p>Total Revenue</p>
+              <StatValue>
+                ₹{revenue.toLocaleString("en-IN")}
+              </StatValue>
+            </Card>
+          </StatsGrid>
 
-      {/* ===== QUICK ACTIONS ===== */}
-      <QuickActions>
-        <h3>Quick Actions</h3>
-        <div style={{ marginTop: 10 }}>
-          <ActionButton
-            onClick={() => navigate("/dashboard/products")}
-          >
-            Manage Products
-          </ActionButton>
+          {/* ===== QUICK ACTIONS ===== */}
+          <QuickActions>
+            <h3>Quick Actions</h3>
+            <div style={{ marginTop: 10 }}>
+              <ActionButton
+                onClick={() =>
+                  navigate("/dashboard/products")
+                }
+                aria-label="Manage Products"
+              >
+                Manage Products
+              </ActionButton>
 
-          <ActionButton
-            onClick={() => navigate("/dashboard/orders")}
-          >
-            View Orders
-          </ActionButton>
+              <ActionButton
+                onClick={() =>
+                  navigate("/dashboard/orders")
+                }
+                aria-label="View Orders"
+              >
+                View Orders
+              </ActionButton>
 
-          <ActionButton
-            onClick={() => navigate("/dashboard/offers")}
-          >
-            Manage Offers
-          </ActionButton>
-        </div>
-      </QuickActions>
+              <ActionButton
+                onClick={() =>
+                  navigate("/dashboard/offers")
+                }
+                aria-label="Manage Offers"
+              >
+                Manage Offers
+              </ActionButton>
+            </div>
+          </QuickActions>
 
-      <SectionDivider />
+          <SectionDivider />
 
-      {/* ===== SHOP MANAGEMENT ===== */}
-      <h3>Manage Shops</h3>
+          {/* ===== SHOP MANAGEMENT ===== */}
+          <h3>Manage Shops</h3>
+          <ShopForm />
 
-      <ShopForm />
+          <SectionDivider />
 
-      <SectionDivider />
+          <ShopList />
+        </>
+      )}
 
-      <ShopList />
+      {/* ===== ADMIN VIEW ===== */}
+      {role === "admin" && (
+        <>
+          <StatsGrid>
+            <Card>
+              <p>Total Shops</p>
+              <StatValue>{shops.length}</StatValue>
+            </Card>
+
+            <Card>
+              <p>Total Products</p>
+              <StatValue>{products.length}</StatValue>
+            </Card>
+
+            <Card>
+              <p>Total Orders</p>
+              <StatValue>
+                {useSelector((s) => s.orders?.adminOrders?.length || 0)}
+              </StatValue>
+            </Card>
+          </StatsGrid>
+
+          <QuickActions>
+            <h3>Admin Quick Actions</h3>
+            <div style={{ marginTop: 10 }}>
+              <ActionButton
+                onClick={() => navigate("/admin")}
+              >
+                Go to Admin Panel
+              </ActionButton>
+            </div>
+          </QuickActions>
+        </>
+      )}
     </Page>
   );
 }

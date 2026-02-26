@@ -1,5 +1,5 @@
 // src/components/Home/TrendingOffers.jsx
-import React from "react";
+import React, { useMemo, useCallback } from "react";
 import styled, { keyframes } from "styled-components";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -36,20 +36,22 @@ const Grid = styled.div`
 `;
 
 /* ===============================
-   CARD
+   CARD (Accessible)
 ================================ */
-const OfferCard = styled.div`
+const OfferCard = styled.button`
   position: relative;
   padding: 24px;
   border-radius: 20px;
-  background: linear-gradient(
-    135deg,
-    ${({ g1 }) => g1},
-    ${({ g2 }) => g2}
-  );
+  border: none;
+  text-align: left;
   color: white;
   cursor: pointer;
   overflow: hidden;
+  background: linear-gradient(
+    135deg,
+    ${({ $g1 }) => $g1},
+    ${({ $g2 }) => $g2}
+  );
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.15);
   transition: all 0.3s ease;
 
@@ -58,7 +60,11 @@ const OfferCard = styled.div`
     box-shadow: 0 30px 70px rgba(0, 0, 0, 0.25);
   }
 
-  /* Shine overlay */
+  &:focus-visible {
+    outline: 3px solid white;
+    outline-offset: 3px;
+  }
+
   &::after {
     content: "";
     position: absolute;
@@ -138,13 +144,32 @@ export default function TrendingOffers() {
 
   const navigate = useNavigate();
 
-  const allOffers = Object.values(offersByShop).flat();
+  const allOffers = useMemo(() => {
+    return Object.values(offersByShop || {})
+      .flat()
+      .filter(Boolean);
+  }, [offersByShop]);
 
-  const topOffers = [...allOffers]
-    .sort((a, b) => (b.discount || 0) - (a.discount || 0))
-    .slice(0, 6);
+  const topOffers = useMemo(() => {
+    return [...allOffers]
+      .sort(
+        (a, b) =>
+          (Number(b?.discount) || 0) -
+          (Number(a?.discount) || 0)
+      )
+      .slice(0, 6);
+  }, [allOffers]);
 
-  if (topOffers.length === 0) {
+  const handleNavigate = useCallback(
+    (shopId) => {
+      if (shopId) {
+        navigate(`/shops/${shopId}`);
+      }
+    },
+    [navigate]
+  );
+
+  if (!topOffers.length) {
     return (
       <Section>
         <Title>Trending Offers</Title>
@@ -156,24 +181,33 @@ export default function TrendingOffers() {
   }
 
   return (
-    <Section>
-      <Title>🔥 Trending Offers</Title>
+    <Section aria-labelledby="trending-title">
+      <Title id="trending-title">
+        🔥 Trending Offers
+      </Title>
 
-      <Grid>
+      <Grid role="list">
         {topOffers.map((o, index) => {
           const [g1, g2] =
             gradients[index % gradients.length];
 
+          const discount =
+            Number(o?.discount) || 0;
+
           return (
             <OfferCard
               key={o.id}
-              g1={g1}
-              g2={g2}
+              role="listitem"
+              aria-label={`View offer ${o.title}`}
+              $g1={g1}
+              $g2={g2}
               onClick={() =>
-                navigate(`/shops/${o.shopId}`)
+                handleNavigate(o.shopId)
               }
             >
-              <Badge>{o.discount}% OFF</Badge>
+              {discount > 0 && (
+                <Badge>{discount}% OFF</Badge>
+              )}
 
               <OfferTitle>
                 {o.title || "Special Offer"}

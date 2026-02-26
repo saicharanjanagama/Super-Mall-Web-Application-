@@ -1,4 +1,5 @@
 // src/features/offers/OfferForm.jsx
+
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import { useDispatch, useSelector } from "react-redux";
@@ -6,7 +7,8 @@ import {
   createOffer,
   editOffer,
   setEditingOffer,
-  selectOfferStatus,
+  selectOfferCreateStatus,
+  selectOfferUpdateStatus,
   selectOfferError,
 } from "./offerSlice";
 
@@ -63,9 +65,12 @@ const Button = styled.button`
   border: none;
   font-weight: 600;
   cursor: pointer;
-  background: ${({ danger }) =>
-    danger ? "#f44336" : "linear-gradient(120deg, #0066ff, #00c6ff)"};
   color: white;
+
+  background: ${({ $danger }) =>
+    $danger
+      ? "#f44336"
+      : "linear-gradient(120deg, #0066ff, #00c6ff)"};
 
   &:disabled {
     opacity: 0.6;
@@ -85,17 +90,21 @@ const Error = styled.p`
 export default function OfferForm({ shopId }) {
   const dispatch = useDispatch();
   const editing = useSelector((s) => s.offers.editingOffer);
-  const status = useSelector(selectOfferStatus);
+
+  const createStatus = useSelector(selectOfferCreateStatus);
+  const updateStatus = useSelector(selectOfferUpdateStatus);
   const error = useSelector(selectOfferError);
 
   const [title, setTitle] = useState("");
   const [discount, setDiscount] = useState("");
-  const [discountType, setDiscountType] = useState("percentage");
+  const [discountType, setDiscountType] =
+    useState("percentage");
   const [description, setDescription] = useState("");
   const [expiry, setExpiry] = useState("");
 
   const isLoading =
-    status === "creating" || status === "updating";
+    createStatus === "loading" ||
+    updateStatus === "loading";
 
   /* =============================
      Prefill When Editing
@@ -104,7 +113,9 @@ export default function OfferForm({ shopId }) {
     if (editing) {
       setTitle(editing.title || "");
       setDiscount(editing.discount || "");
-      setDiscountType(editing.discountType || "percentage");
+      setDiscountType(
+        editing.discountType || "percentage"
+      );
       setDescription(editing.description || "");
       setExpiry(editing.expiry || "");
     }
@@ -113,7 +124,7 @@ export default function OfferForm({ shopId }) {
   /* =============================
      Submit Handler
   ============================== */
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
 
     if (!title || !discount) {
@@ -130,13 +141,20 @@ export default function OfferForm({ shopId }) {
       expiry: expiry || null,
     };
 
+    let result;
+
     if (editing) {
-      dispatch(editOffer({ id: editing.id, updates: data }));
+      result = await dispatch(
+        editOffer({ id: editing.id, updates: data })
+      );
     } else {
-      dispatch(createOffer(data));
+      result = await dispatch(createOffer(data));
     }
 
-    resetForm();
+    // Reset only if success
+    if (result.meta.requestStatus === "fulfilled") {
+      resetForm();
+    }
   };
 
   const resetForm = () => {
@@ -150,7 +168,9 @@ export default function OfferForm({ shopId }) {
 
   return (
     <Card>
-      <Title>{editing ? "Edit Offer" : "Create New Offer"}</Title>
+      <Title>
+        {editing ? "Edit Offer" : "Create New Offer"}
+      </Title>
 
       <form onSubmit={submit}>
         <Input
@@ -164,12 +184,16 @@ export default function OfferForm({ shopId }) {
             type="number"
             placeholder="Discount"
             value={discount}
-            onChange={(e) => setDiscount(e.target.value)}
+            onChange={(e) =>
+              setDiscount(e.target.value)
+            }
           />
 
           <Select
             value={discountType}
-            onChange={(e) => setDiscountType(e.target.value)}
+            onChange={(e) =>
+              setDiscountType(e.target.value)
+            }
           >
             <option value="percentage">%</option>
             <option value="flat">Flat ₹</option>
@@ -180,13 +204,17 @@ export default function OfferForm({ shopId }) {
           placeholder="Offer Description"
           rows="3"
           value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          onChange={(e) =>
+            setDescription(e.target.value)
+          }
         />
 
         <Input
           type="date"
           value={expiry}
-          onChange={(e) => setExpiry(e.target.value)}
+          onChange={(e) =>
+            setExpiry(e.target.value)
+          }
         />
 
         <Row>
@@ -201,7 +229,11 @@ export default function OfferForm({ shopId }) {
           </Button>
 
           {editing && (
-            <Button type="button" danger onClick={resetForm}>
+            <Button
+              type="button"
+              $danger
+              onClick={resetForm}
+            >
               Cancel
             </Button>
           )}

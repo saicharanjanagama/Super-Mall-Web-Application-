@@ -1,10 +1,11 @@
 // src/features/auth/Login.jsx
+
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import { useDispatch, useSelector } from "react-redux";
 import {
   loginUser,
-  sendPasswordReset, 
+  sendPasswordReset,
   clearAuthError,
 } from "./authSlice";
 import { Link, useNavigate } from "react-router-dom";
@@ -72,6 +73,11 @@ const ResetLink = styled.button`
   &:hover {
     text-decoration: underline;
   }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 `;
 
 const BottomText = styled.p`
@@ -88,23 +94,21 @@ export default function Login() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const {
-    loginStatus,
-    resetStatus,
-    error,
-    user,
-  } = useSelector((s) => s.auth);
+  const { loginStatus, resetStatus, error, user } = useSelector(
+    (s) => s.auth
+  );
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
+  /* Clear error on mount */
   useEffect(() => {
     dispatch(clearAuthError());
   }, [dispatch]);
 
-  // Redirect after login
+  /* Redirect after login */
   useEffect(() => {
-    if (!user) return;
+    if (!user?.uid || !user?.role) return;
 
     if (user.role === "admin") navigate("/admin");
     else if (user.role === "merchant") navigate("/dashboard");
@@ -113,11 +117,17 @@ export default function Login() {
 
   const submit = (e) => {
     e.preventDefault();
+
+    if (loginStatus === "loading") return;
+
     dispatch(loginUser({ email, password }));
   };
 
   const onReset = async () => {
-    if (!email) return alert("Enter your email first.");
+    if (!email) {
+      alert("Enter your email first.");
+      return;
+    }
 
     const result = await dispatch(sendPasswordReset({ email }));
 

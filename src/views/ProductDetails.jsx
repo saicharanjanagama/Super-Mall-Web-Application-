@@ -1,6 +1,6 @@
 // src/views/ProductDetails.jsx
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import { useDispatch, useSelector } from "react-redux";
@@ -20,7 +20,7 @@ import {
   removeWishlistItem,
 } from "../features/wishlist/wishlistSlice";
 
-import { addToCart, syncCart } from "../features/cart/cartSlice";
+import { addToCart } from "../features/cart/cartSlice";
 
 /* ===================== STYLES ===================== */
 
@@ -56,7 +56,7 @@ const Price = styled.h3`
 
 const Small = styled.p`
   margin: 6px 0;
-  color: ${({ theme }) => theme.colors.muted};
+  color: ${({ theme }) => theme.colors.muted || "#666"};
 `;
 
 const Badge = styled.span`
@@ -109,13 +109,13 @@ const TextArea = styled.textarea`
   margin-top: 10px;
   padding: 10px;
   border-radius: ${({ theme }) => theme.radius};
-  border: 1px solid ${({ theme }) => theme.colors.muted}55;
+  border: 1px solid ${({ theme }) => theme.colors.border || "#ddd"};
   resize: none;
 `;
 
 const ReviewItem = styled.div`
   padding: 14px 0;
-  border-bottom: 1px solid ${({ theme }) => theme.colors.muted}22;
+  border-bottom: 1px solid ${({ theme }) => theme.colors.border || "#eee"};
 
   &:last-child {
     border-bottom: none;
@@ -136,15 +136,26 @@ export default function ProductDetails() {
   const { products = [] } = useSelector((s) => s.products || {});
   const { list: reviews = [] } = useSelector((s) => s.reviews || {});
   const wishlist = useSelector((s) => s.wishlist?.items || []);
-  const cart = useSelector((s) => s.cart?.items || []);
   const user = useSelector((s) => s.auth?.user || null);
 
-  const product = products.find((p) => p.id === productId);
+  const product = useMemo(
+    () => products.find((p) => p.id === productId),
+    [products, productId]
+  );
+
+  /* ---------- FETCH DATA ---------- */
 
   useEffect(() => {
-    dispatch(fetchProducts());
-    dispatch(fetchReviews(productId));
+    if (!products.length) {
+      dispatch(fetchProducts());
+    }
+
+    if (productId) {
+      dispatch(fetchReviews(productId));
+    }
   }, [dispatch, productId]);
+
+  /* ---------- LOCAL STATE ---------- */
 
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
@@ -157,6 +168,8 @@ export default function ProductDetails() {
       </Page>
     );
 
+  const price = Number(product.price) || 0;
+
   const images =
     product.images?.length
       ? product.images
@@ -166,14 +179,23 @@ export default function ProductDetails() {
 
   const isWishlisted = wishlist.includes(productId);
 
+  /* ---------- ACTIONS ---------- */
+
   const submitReview = async () => {
-    if (!user) return alert("Login required");
-    if (!rating) return alert("Please select a rating");
+    if (!user) return navigate("/login");
+    if (!rating) return alert("Please select rating");
 
     setSending(true);
+
     await dispatch(
-      postReview({ productId, userId: user.uid, rating, comment })
+      postReview({
+        productId,
+        userId: user.uid,
+        rating,
+        comment,
+      })
     );
+
     setSending(false);
     setRating(0);
     setComment("");
@@ -182,29 +204,30 @@ export default function ProductDetails() {
   const toggleWishlist = () => {
     if (!user) return navigate("/login");
 
-    if (isWishlisted)
+    if (isWishlisted) {
       dispatch(removeWishlistItem({ userId: user.uid, productId }));
-    else dispatch(addWishlistItem({ userId: user.uid, product }));
+    } else {
+      dispatch(addWishlistItem({ userId: user.uid, productId }));
+    }
   };
 
   const handleAddCart = () => {
     dispatch(addToCart(product));
-
-    if (user) {
-      dispatch(syncCart({ userId: user.uid, items: [...cart, product] }));
-    }
   };
+
+  /* ================= RENDER ================= */
 
   return (
     <Page>
       <Grid>
-        {/* -------- LEFT: GALLERY -------- */}
+        {/* GALLERY */}
         <AdvancedGallery images={images} />
 
-        {/* -------- RIGHT: INFO -------- */}
+        {/* INFO */}
         <InfoWrap>
           <Title>{product.name}</Title>
-          <Price>₹{product.price}</Price>
+
+          <Price>₹{price.toLocaleString("en-IN")}</Price>
 
           <Badge>In Stock</Badge>
 
@@ -216,7 +239,9 @@ export default function ProductDetails() {
           <Small><b>Category:</b> {product.category}</Small>
 
           {product.features?.length > 0 && (
-            <Small><b>Features:</b> {product.features.join(", ")}</Small>
+            <Small>
+              <b>Features:</b> {product.features.join(", ")}
+            </Small>
           )}
 
           <ButtonRow>
@@ -229,7 +254,7 @@ export default function ProductDetails() {
             </Button>
           </ButtonRow>
 
-          {/* -------- REVIEWS -------- */}
+          {/* REVIEWS */}
           <ReviewSection>
             <h3>Customer Reviews</h3>
 
@@ -256,30 +281,37 @@ export default function ProductDetails() {
             {reviews.length === 0 ? (
               <Small>No reviews yet.</Small>
             ) : (
-              reviews.map((r) => (
-                <ReviewItem key={r.id}>
-                  <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                    <Stars rating={r.rating} size={16} />
-                    <Small>
-                      {new Date(
-                        r.createdAt?.seconds
-                          ? r.createdAt.seconds * 1000
-                          : r.createdAt
-                      ).toLocaleString()}
-                    </Small>
-                  </div>
-                  <p>{r.comment}</p>
+              reviews.map((r) => {
+                const created = r.createdAt?.seconds
+                  ? new Date(r.createdAt.seconds * 1000)
+                  : r.createdAt
+                  ? new Date(r.createdAt)
+                  : null;
 
-                  {user?.uid === r.userId && (
-                    <Button
-                      $danger
-                      onClick={() => dispatch(removeReview(r.id))}
-                    >
-                      Delete
-                    </Button>
-                  )}
-                </ReviewItem>
-              ))
+                return (
+                  <ReviewItem key={r.id}>
+                    <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                      <Stars rating={r.rating} size={16} />
+                      <Small>
+                        {created
+                          ? created.toLocaleString("en-IN")
+                          : "Unknown date"}
+                      </Small>
+                    </div>
+
+                    <p>{r.comment}</p>
+
+                    {user?.uid === r.userId && (
+                      <Button
+                        $danger
+                        onClick={() => dispatch(removeReview(r.id))}
+                      >
+                        Delete
+                      </Button>
+                    )}
+                  </ReviewItem>
+                );
+              })
             )}
           </ReviewSection>
         </InfoWrap>

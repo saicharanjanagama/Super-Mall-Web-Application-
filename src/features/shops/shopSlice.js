@@ -114,9 +114,13 @@ const shopSlice = createSlice({
 
   initialState: {
     shops: [],
-    status: "idle", // idle | loading | creating | updating | deleting | failed
-    error: null,
 
+    fetchStatus: "idle",
+    createStatus: "idle",
+    updateStatus: "idle",
+    deleteStatus: "idle",
+
+    error: null,
     editingShop: null,
 
     filters: {
@@ -144,50 +148,60 @@ const shopSlice = createSlice({
 
     resetShops(state) {
       state.shops = [];
-      state.status = "idle";
+      state.fetchStatus = "idle";
+      state.createStatus = "idle";
+      state.updateStatus = "idle";
+      state.deleteStatus = "idle";
       state.error = null;
     },
   },
 
   extraReducers: (builder) => {
-    /* ================= CREATE ================= */
-    builder
-      .addCase(addShop.pending, (state) => {
-        state.status = "creating";
-        state.error = null;
-      })
-      .addCase(addShop.fulfilled, (state, action) => {
-        state.status = "idle";
-        state.shops.unshift(action.payload);
-      })
-      .addCase(addShop.rejected, (state, action) => {
-        state.status = "failed";
-        state.error = action.payload;
-      });
-
     /* ================= FETCH ================= */
     builder
       .addCase(fetchShops.pending, (state) => {
-        state.status = "loading";
+        state.fetchStatus = "loading";
         state.error = null;
       })
       .addCase(fetchShops.fulfilled, (state, action) => {
-        state.status = "idle";
-        state.shops = action.payload || [];
+        state.fetchStatus = "idle";
+        state.shops = action.payload ?? [];
       })
       .addCase(fetchShops.rejected, (state, action) => {
-        state.status = "failed";
+        state.fetchStatus = "failed";
+        state.error = action.payload;
+      });
+
+    /* ================= CREATE ================= */
+    builder
+      .addCase(addShop.pending, (state) => {
+        state.createStatus = "loading";
+        state.error = null;
+      })
+      .addCase(addShop.fulfilled, (state, action) => {
+        state.createStatus = "idle";
+
+        const exists = state.shops.find(
+          (s) => s.id === action.payload.id
+        );
+
+        if (!exists) {
+          state.shops.unshift(action.payload);
+        }
+      })
+      .addCase(addShop.rejected, (state, action) => {
+        state.createStatus = "failed";
         state.error = action.payload;
       });
 
     /* ================= UPDATE ================= */
     builder
       .addCase(editShop.pending, (state) => {
-        state.status = "updating";
+        state.updateStatus = "loading";
         state.error = null;
       })
       .addCase(editShop.fulfilled, (state, action) => {
-        state.status = "idle";
+        state.updateStatus = "idle";
 
         const { id, updates } = action.payload;
 
@@ -200,24 +214,24 @@ const shopSlice = createSlice({
         state.editingShop = null;
       })
       .addCase(editShop.rejected, (state, action) => {
-        state.status = "failed";
+        state.updateStatus = "failed";
         state.error = action.payload;
       });
 
     /* ================= DELETE ================= */
     builder
       .addCase(removeShop.pending, (state) => {
-        state.status = "deleting";
+        state.deleteStatus = "loading";
         state.error = null;
       })
       .addCase(removeShop.fulfilled, (state, action) => {
-        state.status = "idle";
+        state.deleteStatus = "idle";
         state.shops = state.shops.filter(
           (shop) => shop.id !== action.payload
         );
       })
       .addCase(removeShop.rejected, (state, action) => {
-        state.status = "failed";
+        state.deleteStatus = "failed";
         state.error = action.payload;
       });
   },
@@ -230,15 +244,24 @@ const shopSlice = createSlice({
 export const selectAllShops = (state) =>
   state.shops.shops;
 
-export const selectShopStatus = (state) =>
-  state.shops.status;
+export const selectShopFilters = (state) =>
+  state.shops.filters;
+
+export const selectShopStatus = (state) => ({
+  fetch: state.shops.fetchStatus,
+  create: state.shops.createStatus,
+  update: state.shops.updateStatus,
+  delete: state.shops.deleteStatus,
+});
 
 export const selectShopError = (state) =>
   state.shops.error;
 
 export const selectFilteredShops = createSelector(
-  [(state) => state.shops.shops,
-   (state) => state.shops.filters],
+  [
+    (state) => state.shops.shops,
+    (state) => state.shops.filters,
+  ],
   (shops, filters) => {
     let filtered = [...shops];
 

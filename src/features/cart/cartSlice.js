@@ -1,25 +1,38 @@
 // src/features/cart/cartSlice.js
+
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import { firestore } from "../../api/firebase";
-import firebase from "firebase/compat/app";
+import {
+  doc,
+  setDoc,
+  getDoc,
+  serverTimestamp,
+} from "firebase/firestore";
+import { db } from "../../api/firebase";
 
 /* =====================================================
-   FIRESTORE HELPERS
+   FIRESTORE HELPERS (MODULAR)
 ===================================================== */
 
 async function saveCartToFirestore(userId, items) {
-  await firestore.collection("carts").doc(userId).set(
+  if (!userId) return;
+
+  await setDoc(
+    doc(db, "carts", userId),
     {
       items,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: serverTimestamp(),
     },
     { merge: true }
   );
 }
 
 async function loadFromFirestore(userId) {
-  const snap = await firestore.collection("carts").doc(userId).get();
-  if (!snap.exists) return [];
+  if (!userId) return [];
+
+  const snap = await getDoc(doc(db, "carts", userId));
+
+  if (!snap.exists()) return [];
+
   return snap.data().items || [];
 }
 
@@ -58,7 +71,7 @@ const cartSlice = createSlice({
   name: "cart",
 
   initialState: {
-    items: [], // { id, name, price, qty, imageUrl }
+    items: [],
     status: "idle", // idle | loading | syncing | failed
     error: null,
   },
@@ -115,28 +128,30 @@ const cartSlice = createSlice({
   },
 
   extraReducers: (builder) => {
-    /* -------- LOAD CART -------- */
     builder
+
+      /* -------- LOAD CART -------- */
       .addCase(loadCart.pending, (state) => {
         state.status = "loading";
+        state.error = null;
       })
       .addCase(loadCart.fulfilled, (state, action) => {
         state.status = "idle";
-        state.items = action.payload || [];
+        state.items = action.payload ?? [];
       })
       .addCase(loadCart.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload;
-      });
+      })
 
-    /* -------- SYNC CART -------- */
-    builder
+      /* -------- SYNC CART -------- */
       .addCase(syncCart.pending, (state) => {
         state.status = "syncing";
+        state.error = null;
       })
       .addCase(syncCart.fulfilled, (state, action) => {
         state.status = "idle";
-        state.items = action.payload || [];
+        state.items = action.payload ?? [];
       })
       .addCase(syncCart.rejected, (state, action) => {
         state.status = "failed";

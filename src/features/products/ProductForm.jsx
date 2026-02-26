@@ -7,7 +7,8 @@ import {
   addProduct,
   editProduct,
   setEditingProduct,
-  selectProductStatus,
+  selectProductCreateStatus,
+  selectProductUpdateStatus,
   selectProductError,
 } from "./productSlice";
 
@@ -33,8 +34,6 @@ const Input = styled.input`
   margin: 8px 0;
   border-radius: 6px;
   border: 1px solid ${({ theme }) => theme.colors.border};
-  background: ${({ theme }) => theme.colors.background};
-  color: ${({ theme }) => theme.colors.text};
 `;
 
 const TextArea = styled.textarea`
@@ -55,11 +54,6 @@ const Button = styled.button`
   background: ${({ theme }) => theme.colors.primary};
   color: white;
   font-weight: 600;
-  transition: 0.2s;
-
-  &:hover {
-    opacity: 0.9;
-  }
 
   &:disabled {
     opacity: 0.6;
@@ -69,6 +63,10 @@ const Button = styled.button`
 
 const CancelBtn = styled.button`
   margin-left: 10px;
+  padding: 10px 18px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
   background: #ccc;
   color: #333;
 `;
@@ -92,12 +90,15 @@ const ErrorText = styled.p`
 
 export default function ProductForm({ shopId }) {
   const dispatch = useDispatch();
+
   const editing = useSelector((s) => s.products.editingProduct);
-  const status = useSelector(selectProductStatus);
+  const createStatus = useSelector(selectProductCreateStatus);
+  const updateStatus = useSelector(selectProductUpdateStatus);
   const error = useSelector(selectProductError);
 
   const isLoading =
-    status === "creating" || status === "updating";
+    createStatus === "loading" ||
+    updateStatus === "loading";
 
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
@@ -120,33 +121,28 @@ export default function ProductForm({ shopId }) {
   }, [editing]);
 
   /* ============================
-     Cleanup Object URL
+     Reset Only After Success
   ============================ */
   useEffect(() => {
-    return () => {
-      if (preview && preview.startsWith("blob:")) {
-        URL.revokeObjectURL(preview);
-      }
-    };
-  }, [preview]);
-
-  /* ============================
-     Reset Form
-  ============================ */
-  const resetForm = () => {
-    setName("");
-    setPrice("");
-    setCategory("");
-    setFeatures("");
-    setFile(null);
-    setPreview("");
-    dispatch(setEditingProduct(null));
-  };
+    if (
+      createStatus === "idle" &&
+      updateStatus === "idle" &&
+      !error
+    ) {
+      setName("");
+      setPrice("");
+      setCategory("");
+      setFeatures("");
+      setFile(null);
+      setPreview("");
+      dispatch(setEditingProduct(null));
+    }
+  }, [createStatus, updateStatus, error, dispatch]);
 
   /* ============================
      Submit
   ============================ */
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
 
     if (!name || !price || !category) {
@@ -175,8 +171,6 @@ export default function ProductForm({ shopId }) {
     } else {
       dispatch(addProduct({ data, file }));
     }
-
-    resetForm();
   };
 
   return (
@@ -211,7 +205,6 @@ export default function ProductForm({ shopId }) {
           onChange={(e) => setFeatures(e.target.value)}
         />
 
-        {/* File Upload */}
         <Input
           type="file"
           accept="image/*"
@@ -219,11 +212,15 @@ export default function ProductForm({ shopId }) {
             const selected = e.target.files[0];
             if (!selected) return;
             setFile(selected);
-            setPreview(URL.createObjectURL(selected));
+            setPreview(
+              URL.createObjectURL(selected)
+            );
           }}
         />
 
-        {preview && <Preview src={preview} alt="Preview" />}
+        {preview && (
+          <Preview src={preview} alt="Preview" />
+        )}
 
         {error && <ErrorText>{error}</ErrorText>}
 
@@ -239,7 +236,9 @@ export default function ProductForm({ shopId }) {
           {editing && (
             <CancelBtn
               type="button"
-              onClick={resetForm}
+              onClick={() =>
+                dispatch(setEditingProduct(null))
+              }
             >
               Cancel
             </CancelBtn>

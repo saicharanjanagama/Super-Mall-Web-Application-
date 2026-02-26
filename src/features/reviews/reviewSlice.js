@@ -15,7 +15,7 @@ export const fetchReviews = createAsyncThunk(
   async (productId, { rejectWithValue }) => {
     try {
       const reviews = await getReviews(productId);
-      return { productId, reviews };
+      return { productId, reviews: reviews || [] };
     } catch (err) {
       return rejectWithValue(
         err.message || "Failed to fetch reviews"
@@ -45,10 +45,10 @@ export const postReview = createAsyncThunk(
 ===================================================== */
 export const removeReview = createAsyncThunk(
   "reviews/removeReview",
-  async (id, { rejectWithValue }) => {
+  async ({ id, productId }, { rejectWithValue }) => {
     try {
       await deleteReview(id);
-      return id;
+      return { id, productId };
     } catch (err) {
       return rejectWithValue(
         err.message || "Failed to delete review"
@@ -65,91 +65,111 @@ const slice = createSlice({
   name: "reviews",
 
   initialState: {
-    reviewsByProduct: {}, // { productId: [reviews] }
-    status: "idle",       // idle | loading | posting | deleting | failed
-    error: null,
+    reviewsByProduct: {},     // { productId: [reviews] }
+    statusByProduct: {},      // { productId: status }
+    errorByProduct: {},       // { productId: error }
   },
 
   reducers: {
-    clearReviewError(state) {
-      state.error = null;
+    clearReviewError(state, action) {
+      const productId = action.payload;
+      if (productId) {
+        state.errorByProduct[productId] = null;
+      }
     },
 
     resetReviews(state) {
       state.reviewsByProduct = {};
-      state.status = "idle";
-      state.error = null;
+      state.statusByProduct = {};
+      state.errorByProduct = {};
     },
   },
 
   extraReducers: (builder) => {
     /* ================= FETCH ================= */
     builder
-      .addCase(fetchReviews.pending, (state) => {
-        state.status = "loading";
-        state.error = null;
+      .addCase(fetchReviews.pending, (state, action) => {
+        const productId = action.meta.arg;
+        state.statusByProduct[productId] = "loading";
+        state.errorByProduct[productId] = null;
       })
       .addCase(fetchReviews.fulfilled, (state, action) => {
-        state.status = "idle";
-
         const { productId, reviews } = action.payload;
 
-        state.reviewsByProduct[productId] =
-          reviews || [];
+        state.statusByProduct[productId] = "idle";
+
+        // Sort newest first (safe date handling)
+        const sorted = [...reviews].sort((a, b) => {
+          const dateA = new Date(a.createdAt || 0).getTime();
+          const dateB = new Date(b.createdAt || 0).getTime();
+          return dateB - dateA;
+        });
+
+        state.reviewsByProduct[productId] = sorted;
       })
       .addCase(fetchReviews.rejected, (state, action) => {
-        state.status = "failed";
-        state.error = action.payload;
+        const productId = action.meta.arg;
+        state.statusByProduct[productId] = "failed";
+        state.errorByProduct[productId] = action.payload;
       });
 
     /* ================= POST ================= */
     builder
-      .addCase(postReview.pending, (state) => {
-        state.status = "posting";
-        state.error = null;
+      .addCase(postReview.pending, (state, action) => {
+        const productId = action.meta.arg.productId;
+        state.statusByProduct[productId] = "posting";
+        state.errorByProduct[productId] = null;
       })
       .addCase(postReview.fulfilled, (state, action) => {
-        state.status = "idle";
-
         const review = action.payload;
         const productId = review.productId;
+
+        state.statusByProduct[productId] = "idle";
 
         if (!state.reviewsByProduct[productId]) {
           state.reviewsByProduct[productId] = [];
         }
 
-        state.reviewsByProduct[productId].unshift(
-          review
-        );
+        // Prevent duplicates
+        const exists =
+          state.reviewsByProduct[productId].some(
+            (r) => r.id === review.id
+          );
+
+        if (!exists) {
+          state.reviewsByProduct[productId].unshift(
+            review
+          );
+        }
       })
       .addCase(postReview.rejected, (state, action) => {
-        state.status = "failed";
-        state.error = action.payload;
+        const productId = action.meta.arg.productId;
+        state.statusByProduct[productId] = "failed";
+        state.errorByProduct[productId] = action.payload;
       });
 
     /* ================= DELETE ================= */
     builder
-      .addCase(removeReview.pending, (state) => {
-        state.status = "deleting";
-        state.error = null;
+      .addCase(removeReview.pending, (state, action) => {
+        const { productId } = action.meta.arg;
+        state.statusByProduct[productId] = "deleting";
       })
       .addCase(removeReview.fulfilled, (state, action) => {
-        state.status = "idle";
+        const { id, productId } = action.payload;
 
-        const id = action.payload;
+        state.statusByProduct[productId] = "idle";
 
-        Object.keys(state.reviewsByProduct).forEach(
-          (productId) => {
-            state.reviewsByProduct[productId] =
-              state.reviewsByProduct[
-                productId
-              ].filter((r) => r.id !== id);
-          }
-        );
+        if (!state.reviewsByProduct[productId]) return;
+
+        state.reviewsByProduct[productId] =
+          state.reviewsByProduct[productId].filter(
+            (r) => r.id !== id
+          );
       })
       .addCase(removeReview.rejected, (state, action) => {
-        state.status = "failed";
-        state.error = action.payload;
+        const { productId } = action.meta.arg;
+        state.statusByProduct[productId] = "failed";
+        state.errorByProduct[productId] = action.payload;
       });
   },
 });
@@ -160,14 +180,15 @@ const slice = createSlice({
 
 export const selectReviewsByProduct =
   (productId) => (state) =>
-    state.reviews.reviewsByProduct[productId] ||
-    [];
+    state.reviews.reviewsByProduct[productId] || [];
 
-export const selectReviewStatus = (state) =>
-  state.reviews.status;
+export const selectReviewStatus =
+  (productId) => (state) =>
+    state.reviews.statusByProduct[productId] || "idle";
 
-export const selectReviewError = (state) =>
-  state.reviews.error;
+export const selectReviewError =
+  (productId) => (state) =>
+    state.reviews.errorByProduct[productId] || null;
 
 /* =====================================================
    EXPORT
