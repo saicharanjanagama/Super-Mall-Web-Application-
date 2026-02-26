@@ -1,17 +1,19 @@
-<h1 align="center">🛍️ Super Mall Web Application (HTML + CSS + JS + Firebase)</h1> 
+<h1 align="center">🛍️ Super Mall Web Application (React + Firebase + Cloudinary)</h1> 
 
 <p align="center"> 
-  <img src="https://img.shields.io/badge/Frontend-HTML5-orange?style=for-the-badge" /> 
-  <img src="https://img.shields.io/badge/Styling-CSS3-blue?style=for-the-badge" /> 
-  <img src="https://img.shields.io/badge/Logic-JavaScript-yellow?style=for-the-badge" /> 
-  <img src="https://img.shields.io/badge/Backend-Firebase-red?style=for-the-badge" /> 
-  <img src="https://img.shields.io/badge/Database-Firestore-green?style=for-the-badge" /> 
-  <img src="https://img.shields.io/badge/Auth-Firebase%20Auth-purple?style=for-the-badge" /> 
-  <img src="https://img.shields.io/badge/Deployment-Firebase%20Hosting-black?style=for-the-badge" /> 
+  <img src="https://img.shields.io/badge/Frontend-React-blue?style=for-the-badge" /> 
+  <img src="https://img.shields.io/badge/Backend-Firebase-orange?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Database-Firestore-yellow?style=for-the-badge" /> 
+  <img src="https://img.shields.io/badge/Auth-Firebase%20Auth-green?style=for-the-badge" /> 
+  <img src="https://img.shields.io/badge/Storage-Cloudinary-red?style=for-the-badge" /> 
+  <img src="https://img.shields.io/badge/Styling-Styled%20Components-black?style=for-the-badge" /> 
+  <img src="https://img.shields.io/badge/Routing-React%20Router-blueviolet?style=for-the-badge" /> 
+  <img src="https://img.shields.io/badge/Deployment-Firebase%20Hosting-purple?style=for-the-badge" /> 
 </p> 
 
-<p align="center"> A <b>secure Super Mall management web application</b> that allows merchants to manage shops, offers, products, categories, and locations while enabling users to explore and compare products efficiently. Built using <b>modular JavaScript architecture + Firebase backend</b> with secure authentication and logging system. </p>
-
+<p align="center"> 
+  A <b>full-featured Super Mall management web application</b> built using <b>React + Firebase + Cloudinary</b>. The platform enables <b>Admins to manage shops, products, offers, categories, and floors</b>, while Users can <b>browse, filter, compare products, and explore shop-wise offers</b>. Designed using <b>modular React architecture, secure authentication, scalable Firestore database, and production-level deployment practices</b>.
+</p>
 ---
 
 ## 🌍 Live Application 
@@ -22,20 +24,21 @@
 
 ## 🎯 Problem Statement
 
-Many basic chat apps lack:
-- Real-time synchronization
-- Secure authentication
-- Protected routes
-- Media sharing
-- Scalable backend architecture
+Traditional mall management systems lack:
+- Centralized digital product listing
+- Secure admin-based management
+- Product comparison functionality
+- Structured category & floor filtering
+- Cloud-based scalable backend
 
 This platform solves that by:
 
-✅ Implementing real-time messaging using Firestore<br>
-✅ Secure Firebase Authentication<br>
-✅ Protected routes with persistent login<br>
-✅ Image/media sharing<br>
-✅ Production-ready architecture
+✅ Secure Admin & User Authentication<br>
+✅ Dynamic Shop & Offer Management<br>
+✅ Product Comparison (Cost & Features)<br>
+✅ Category-wise & Floor-wise Browsing<br>
+✅ Cloudinary Image Upload Integration<br>
+✅ Production-ready scalable architecture
 
 ---
 
@@ -47,37 +50,40 @@ This platform solves that by:
 - Firebase Authentication
 - Persistent Login State
 - Protected Routes
-- Error Handling & Toast Notifications
+- Role-based Access (Admin / User)
 
-### 💬 Real-Time Messaging
+### 🏬 Admin Management System
 
-- One-to-one private chat
-- Real-time Firestore listeners
-- Instant message updates
-- Message timestamps
-- Optimistic UI updates
+- Create Shop Details
+- Manage Shop Information
+- Manage Offer Details
+- Manage Category & Floor
+- Add / Edit / Delete Products
+- Shop-wise Offer Management
+- Logging for all admin actions
 
-### 📁 Media Sharing
+### 🛍️ Product & Mall Features
 
-- Upload images
-- Firebase Storage integration
-- File preview support
-- Secure storage ruless
+- Category-wise Product Listing
+- Floor-wise Shop Details
+- Compare Products (Price & Features)
+- Filter by Category / Price
+- Search & Explore Shops
+- Shop-wise Offers Display
 
-### 👥 User Management
+### 📸 Media Handling
 
-- Search users
-- Start new conversations
-- Unique chat ID generation
-- Store conversation metadata
-- Track last message & timestamp
+- Cloudinary Image Upload
+- Image Preview Support
+- Secure Media Hosting
 
-### 🧠 State Management
+### 🧠 Architecture & Code Quality
 
-- Redux Toolkit for global state
-- Auth slice
-- Chat slice
-- Clean modular architecture
+- Modular Component Structure
+- Reusable React Components
+- Clean Folder Structure
+- Environment-based Configuration
+- Firebase Firestore Structured Collections
 
 ---
 
@@ -92,28 +98,31 @@ This platform solves that by:
 ### Backend
 - **Firebase Authentication**
 - **Firestore Database**
-- **Firebase Storage**
 - **Firebase Hosting**
 
+### Media Storage
+
+- **Cloudinary Integration**
+
 ### Security
-- Firestore Security Rules
-- Storage Security Rules
-- Protected Routes
-- Auth-based Data Access
+- **Firestore Security Rules**
+- **Storage Security Rules**
+- **Protected Routes**
+- **Auth-based Data Access**
 
 ---
 
 ## 🧠 How the Application Works
 
-1️⃣ User Registers / Logs in<br>
-2️⃣ Firebase Authentication verifies user<br>
-3️⃣ Dashboard loads user list<br>
-4️⃣ User selects another user<br>
-5️⃣ Chat room created dynamically<br>
-6️⃣ Messages stored in Firestore<br>
-7️⃣ Real-time listeners update UI instantly<br>
-8️⃣ Media files stored in Firebase Storage<br>
-9️⃣ Conversation metadata updated automatically
+1️⃣ Admin / User registers or logs in
+2️⃣ Firebase Authentication verifies credentials
+3️⃣ Role-based dashboard loads
+4️⃣ Admin manages shops/products/offers
+5️⃣ Data stored securely in Firestore
+6️⃣ Users browse & filter shops/products
+7️⃣ Product comparison executed dynamically
+8️⃣ Images uploaded to Cloudinary
+9️⃣ Application served via Firebase Hosting
 
 ---
 
@@ -122,17 +131,20 @@ This platform solves that by:
 ```bash
 chat-application/
 ├── src/
+│   ├── api/
+│   ├── app/
 │   ├── components/
 │   ├── features/
-│   │   ├── profile/
-│   │   ├── chat/
-│   │   ├── rooms/
+│   ├── pages/
 │   ├── services/
-│   │   └── firebase.js
+│   ├── routes/
+│   ├── styles/
+│   ├── views/
 │   ├── utils/
-│   ├── App.css/
+│   ├── index.js
 │   └── App.js
 ├── public/
+│   └── images/
 ├── firestore.rules
 ├── storage.rules
 ├── firebase.json
@@ -145,15 +157,9 @@ chat-application/
 
 ### Firestore
 
-- Users can read/write only their chats
-- Conversation participants only can access messages
-- Metadata protected per user
-
-### Storage
-
-- Only authenticated users can upload
-- File access restricted by UID
-- Controlled media access
+- Only authenticated users can read data
+- Only Admin can create/update/delete shops & products
+- Role-based data validation
 
 ---
 
@@ -163,13 +169,14 @@ chat-application/
 
 - Node.js (v18+ recommended)
 - Firebase Project
+- Cloudinary Account
 - Git
 
 ### 1️⃣ Clone Repo
 
 ```bash
-git clone https://github.com/saicharanjanagama/chat-application.git
-cd chat-application
+git clone https://github.com/saicharanjanagama/Super-Mall-Web-Application-.git
+cd Super-Mall-Web-Application-
 ```
 
 ### 2️⃣ Install Dependencies
@@ -188,6 +195,9 @@ REACT_APP_FIREBASE_PROJECT_ID=
 REACT_APP_FIREBASE_STORAGE_BUCKET=
 REACT_APP_FIREBASE_MESSAGING_SENDER_ID=
 REACT_APP_FIREBASE_APP_ID=
+
+REACT_APP_CLOUDINARY_CLOUD_NAME=
+REACT_APP_CLOUDINARY_UPLOAD_PRESET=
 ```
 
 ### 4️⃣ Run App
@@ -214,7 +224,7 @@ firebase deploy
 
 ### Hosting URL:
 
-https://chatapplication-87b43.web.app
+https://p777-9d06d.web.app/
 
 ---
 
@@ -223,47 +233,50 @@ https://chatapplication-87b43.web.app
 ### Authentication
 
 - Register new user
-- Register duplicate user
-- Login with wrong password
+- Login with incorrect credentials
+- Role-based dashboard access
 - Logout functionality
-- Access protected route without login
 
-### Messaging
+### Admin Module
 
-- Send text message
-- Send image message
-- Real-time update verification
-- Create new chat
-- Verify chat persistence after refresh
+- Add new shop
+- Update shop details
+- Delete product
+- Create offer
+
+### User Module
+
+- Browse category-wise products
+- Filter by price
+- Compare two products
+- View shop-wise offers
 
 ### Security
 
-- Attempt to access another user's chat
-- Attempt unauthorized Firestore write
+- Unauthorized admin access attempt
+- Firestore write without permission
 
 ---
 
 ## ⚡ Optimization Techniques Used
 
-- Real-time Firestore listeners
-- Redux global state optimization
-- Lazy component loading
-- Optimistic UI updates
-- Modular architecture
-- Clean folder structure
+- Modular React architecture
+- Efficient Firestore queries
+- Cloud-based scalable backend
+- Reusable UI components
+- Clean separation of concerns
 - Environment-based configuration
 
 ---
 
 ## 🎯 Future Improvements
 
-- Group Chat
-- Online / Offline status
-- Typing indicators
-- Message reactions
-- Push notifications
-- End-to-End Encryption
+- Real-time Offer Notifications
+- Advanced Search & Sorting
+- Payment Gateway Integration
+- Analytics Dashboard
 - Dark Mode UI
+- Mobile App Version
 
 ---
 
